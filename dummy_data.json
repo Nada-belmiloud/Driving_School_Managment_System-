@@ -1,0 +1,1151 @@
+{
+  "manager": {
+    "name": "Ahmed Benali",
+    "email": "ahmed.benali@ecole.dz",
+    "username": "manager",
+    "password": "admin123"
+  },
+  "instructors": [
+    {
+      "id": "MC",
+      "name": "Mohamed Cherif",
+      "phone": "+213 555 111 222",
+      "email": "mohamed.cherif@ecole.dz",
+      "vehicle_id": "V001"
+    },
+    {
+      "id": "RB",
+      "name": "Rachid Belkacem",
+      "phone": "+213 555 222 333",
+      "email": "rachid.belkacem@ecole.dz",
+      "vehicle_id": "V002"
+    },
+    {
+      "id": "SL",
+      "name": "Sofiane Lamri",
+      "phone": "+213 555 333 444",
+      "email": "sofiane.lamri@ecole.dz",
+      "vehicle_id": "V003"
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "V001",
+      "brand": "Renault Symbol",
+      "license_plate": "16-123-31",
+      "assigned_instructor_id": "MC",
+      "status": "active"
+    },
+    {
+      "id": "V002",
+      "brand": "Peugeot 301",
+      "license_plate": "16-456-31",
+      "assigned_instructor_id": "RB",
+      "status": "active"
+    },
+    {
+      "id": "V003",
+      "brand": "Volkswagen Polo",
+      "license_plate": "16-789-31",
+      "assigned_instructor_id": "SL",
+      "status": "active"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "AK001",
+      "full_name": "Amina Khelifi",
+      "age": 22,
+      "phone": "+213 555 123 456",
+      "email": "amina.khelifi@email.dz",
+      "license_category": "B",
+      "registration_date": "2024-09-15",
+      "documents_submitted": 5,
+      "documents_required": 6,
+      "current_phase": "Parking",
+      "sessions_completed": 10,
+      "sessions_recommended": 15,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 22666,
+        "remaining": 11334,
+        "percentage_paid": 67
+      },
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-09-10",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "41/40",
+          "notes": "Excellent performance"
+        }
+      ],
+      "scheduled_exam": {
+        "phase": "Parking",
+        "exam_date": "2024-10-25",
+        "attempt": 1
+      },
+      "training_sessions": [
+        {
+          "phase": "Parking",
+          "date": "2024-10-15",
+          "time": "11:00",
+          "instructor_id": "MC",
+          "status": "cancelled"
+        },
+        {
+          "phase": "Parking",
+          "date": "2024-10-14",
+          "time": "07:00",
+          "instructor_id": "MC",
+          "status": "completed"
+        },
+        {
+          "phase": "Parking",
+          "date": "2024-10-16",
+          "time": "15:00",
+          "instructor_id": "MC",
+          "status": "completed"
+        },
+        {
+          "phase": "Parking",
+          "date": "2024-10-18",
+          "time": "17:00",
+          "instructor_id": "MC",
+          "status": "completed"
+        },
+        {
+          "phase": "Parking",
+          "date": "2024-10-19",
+          "time": "20:00",
+          "instructor_id": "MC",
+          "status": "completed"
+        },
+        {
+          "phase": "Highway Code",
+          "date": "2024-09-30",
+          "time": "14:00",
+          "instructor_id": "MC",
+          "status": "cancelled"
+        },
+        {
+          "phase": "Highway Code",
+          "date": "2024-09-19",
+          "time": "14:00",
+          "instructor_id": "MC",
+          "status": "completed"
+        },
+        {
+          "phase": "Highway Code",
+          "date": "2024-09-18",
+          "time": "07:00",
+          "instructor_id": "MC",
+          "status": "completed"
+        },
+        {
+          "phase": "Highway Code",
+          "date": "2024-09-17",
+          "time": "07:00",
+          "instructor_id": "MC",
+          "status": "completed"
+        },
+        {
+          "phase": "Highway Code",
+          "date": "2024-09-16",
+          "time": "07:00",
+          "instructor_id": "MC",
+          "status": "completed"
+        }
+      ],
+      "payment_history": [
+        {
+          "date": "2024-09-15",
+          "amount": 11333,
+          "description": "Phase 1 payment"
+        },
+        {
+          "date": "2024-10-01",
+          "amount": 11333,
+          "description": "Phase 2 payment"
+        }
+      ]
+    },
+    {
+      "id": "YM002",
+      "full_name": "Youcef Meziane",
+      "age": 19,
+      "phone": "+213 555 234 567",
+      "email": "youcef.meziane@email.dz",
+      "license_category": "B",
+      "registration_date": "2024-08-15",
+      "documents_submitted": 4,
+      "documents_required": 6,
+      "current_phase": "Highway Code",
+      "sessions_completed": 18,
+      "sessions_recommended": 25,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 34000,
+        "remaining": 0,
+        "percentage_paid": 100
+      },
+      "exam_history": [],
+      "scheduled_exam": {
+        "phase": "Highway Code",
+        "exam_date": "2024-10-20",
+        "attempt": 1
+      },
+      "training_sessions": [
+        {
+          "phase": "Highway Code",
+          "date": "2024-10-26",
+          "time": "14:00",
+          "instructor_id": "MC",
+          "status": "scheduled"
+        }
+      ],
+      "payment_history": [
+        {
+          "date": "2024-10-01",
+          "amount": 34000,
+          "description": "Full payment completed"
+        }
+      ]
+    },
+    {
+      "id": "FB003",
+      "full_name": "Fatima Bouras",
+      "age": 25,
+      "phone": "+213 555 345 678",
+      "email": "fatima.bouras@email.dz",
+      "license_category": "B",
+      "registration_date": "2024-07-10",
+      "documents_submitted": 5,
+      "documents_required": 6,
+      "current_phase": "Driving",
+      "sessions_completed": 8,
+      "sessions_recommended": 15,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 34000,
+        "remaining": 0,
+        "percentage_paid": 100
+      },
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-09-10",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "38/40",
+          "notes": "Good understanding"
+        },
+        {
+          "phase": "Parking",
+          "exam_date": "2024-10-15",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "Pass",
+          "notes": "Confident maneuvers"
+        }
+      ],
+      "scheduled_exam": {
+        "phase": "Driving",
+        "exam_date": "2024-11-05",
+        "attempt": 1
+      },
+      "training_sessions": [
+        {
+          "phase": "Driving",
+          "date": "2024-10-27",
+          "time": "09:00",
+          "instructor_id": "RB",
+          "status": "scheduled"
+        }
+      ],
+      "payment_history": [
+        {
+          "date": "2024-08-20",
+          "amount": 11333,
+          "description": "Initial payment"
+        },
+        {
+          "date": "2024-09-05",
+          "amount": 11333,
+          "description": "Second installment"
+        },
+        {
+          "date": "2024-10-10",
+          "amount": 11334,
+          "description": "Final payment"
+        }
+      ]
+    },
+    {
+      "id": "KH004",
+      "full_name": "Karim Hadj",
+      "age": 18,
+      "phone": "+213 555 456 789",
+      "email": "karim.hadj@email.dz",
+      "license_category": "A1",
+      "registration_date": "2024-09-01",
+      "documents_submitted": 4,
+      "documents_required": 6,
+      "current_phase": "Highway Code",
+      "sessions_completed": 15,
+      "sessions_recommended": 25,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 11333,
+        "remaining": 22667,
+        "percentage_paid": 33
+      },
+      "exam_history": [],
+      "scheduled_exam": null,
+      "training_sessions": [],
+      "payment_history": [
+        {
+          "date": "2024-10-10",
+          "amount": 11333,
+          "description": "Initial payment"
+        }
+      ]
+    },
+    {
+      "id": "SB005",
+      "full_name": "Salma Benhadj",
+      "age": 30,
+      "phone": "+213 555 567 890",
+      "email": "salma.benhadj@email.dz",
+      "license_category": "C1",
+      "registration_date": "2024-06-20",
+      "documents_submitted": 5,
+      "documents_required": 6,
+      "current_phase": "Driving",
+      "sessions_completed": 2,
+      "sessions_recommended": 15,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 34000,
+        "remaining": 0,
+        "percentage_paid": 100
+      },
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-08-15",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "39/40",
+          "notes": "Excellent"
+        },
+        {
+          "phase": "Parking",
+          "exam_date": "2024-09-20",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "Pass",
+          "notes": "Good technical skills"
+        }
+      ],
+      "scheduled_exam": null,
+      "training_sessions": [],
+      "payment_history": [
+        {
+          "date": "2024-09-05",
+          "amount": 17000,
+          "description": "First payment"
+        },
+        {
+          "date": "2024-10-05",
+          "amount": 17000,
+          "description": "Final payment"
+        }
+      ]
+    },
+    {
+      "id": "NM006",
+      "full_name": "Nadia Merabet",
+      "age": 21,
+      "phone": "+213 555 678 901",
+      "email": "nadia.merabet@email.dz",
+      "license_category": "B",
+      "registration_date": "2024-08-05",
+      "documents_submitted": 6,
+      "documents_required": 6,
+      "current_phase": "Parking",
+      "sessions_completed": 12,
+      "sessions_recommended": 15,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 22666,
+        "remaining": 11334,
+        "percentage_paid": 67
+      },
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-09-05",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "37/40",
+          "notes": "Good performance"
+        }
+      ],
+      "scheduled_exam": null,
+      "training_sessions": [],
+      "payment_history": [
+        {
+          "date": "2024-08-05",
+          "amount": 11333,
+          "description": "Initial payment"
+        },
+        {
+          "date": "2024-09-10",
+          "amount": 11333,
+          "description": "Second payment"
+        }
+      ]
+    },
+    {
+      "id": "BK007",
+      "full_name": "Bilal Kaci",
+      "age": 24,
+      "phone": "+213 555 789 012",
+      "email": "bilal.kaci@email.dz",
+      "license_category": "B",
+      "registration_date": "2024-07-15",
+      "documents_submitted": 5,
+      "documents_required": 6,
+      "current_phase": "Driving",
+      "sessions_completed": 5,
+      "sessions_recommended": 15,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 17000,
+        "remaining": 17000,
+        "percentage_paid": 50
+      },
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-08-20",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "36/40",
+          "notes": "Satisfactory"
+        },
+        {
+          "phase": "Parking",
+          "exam_date": "2024-09-25",
+          "result": "Passed",
+          "attempt": 2,
+          "score": "Pass",
+          "notes": "Improved after first attempt"
+        }
+      ],
+      "scheduled_exam": null,
+      "training_sessions": [],
+      "payment_history": [
+        {
+          "date": "2024-07-15",
+          "amount": 17000,
+          "description": "50% payment"
+        }
+      ]
+    },
+    {
+      "id": "SA008",
+      "full_name": "Samir Azzouz",
+      "age": 28,
+      "phone": "+213 555 890 123",
+      "email": "samir.azzouz@email.dz",
+      "license_category": "A1",
+      "registration_date": "2024-09-10",
+      "documents_submitted": 4,
+      "documents_required": 6,
+      "current_phase": "Highway Code",
+      "sessions_completed": 22,
+      "sessions_recommended": 25,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 11333,
+        "remaining": 22667,
+        "percentage_paid": 33
+      },
+      "exam_history": [],
+      "scheduled_exam": null,
+      "training_sessions": [],
+      "payment_history": [
+        {
+          "date": "2024-09-10",
+          "amount": 11333,
+          "description": "Initial payment"
+        }
+      ]
+    },
+    {
+      "id": "LD009",
+      "full_name": "Lydia Djelloul",
+      "age": 19,
+      "phone": "+213 555 901 234",
+      "email": "lydia.djelloul@email.dz",
+      "license_category": "B",
+      "registration_date": "2024-08-25",
+      "documents_submitted": 6,
+      "documents_required": 6,
+      "current_phase": "Parking",
+      "sessions_completed": 8,
+      "sessions_recommended": 15,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 22666,
+        "remaining": 11334,
+        "percentage_paid": 67
+      },
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-09-28",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "40/40",
+          "notes": "Perfect score"
+        }
+      ],
+      "scheduled_exam": null,
+      "training_sessions": [],
+      "payment_history": [
+        {
+          "date": "2024-08-25",
+          "amount": 11333,
+          "description": "Initial payment"
+        },
+        {
+          "date": "2024-09-28",
+          "amount": 11333,
+          "description": "Second payment"
+        }
+      ]
+    },
+    {
+      "id": "MT010",
+      "full_name": "Mehdi Toumi",
+      "age": 26,
+      "phone": "+213 555 012 345",
+      "email": "mehdi.toumi@email.dz",
+      "license_category": "B",
+      "registration_date": "2024-07-30",
+      "documents_submitted": 5,
+      "documents_required": 6,
+      "current_phase": "Driving",
+      "sessions_completed": 11,
+      "sessions_recommended": 15,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 34000,
+        "remaining": 0,
+        "percentage_paid": 100
+      },
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-09-02",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "38/40",
+          "notes": "Very good"
+        },
+        {
+          "phase": "Parking",
+          "exam_date": "2024-10-08",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "Pass",
+          "notes": "Confident parking"
+        }
+      ],
+      "scheduled_exam": null,
+      "training_sessions": [],
+      "payment_history": [
+        {
+          "date": "2024-07-30",
+          "amount": 17000,
+          "description": "50% payment"
+        },
+        {
+          "date": "2024-09-15",
+          "amount": 17000,
+          "description": "Final payment"
+        }
+      ]
+    },
+    {
+      "id": "YS011",
+      "full_name": "Yasmina Saadi",
+      "age": 23,
+      "phone": "+213 555 123 456",
+      "email": "yasmina.saadi@email.dz",
+      "license_category": "B",
+      "registration_date": "2024-09-05",
+      "documents_submitted": 4,
+      "documents_required": 6,
+      "current_phase": "Highway Code",
+      "sessions_completed": 20,
+      "sessions_recommended": 25,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 11333,
+        "remaining": 22667,
+        "percentage_paid": 33
+      },
+      "exam_history": [],
+      "scheduled_exam": null,
+      "training_sessions": [],
+      "payment_history": [
+        {
+          "date": "2024-09-05",
+          "amount": 11333,
+          "description": "Initial payment"
+        }
+      ]
+    },
+    {
+      "id": "RM012",
+      "full_name": "Riad Mourad",
+      "age": 32,
+      "phone": "+213 555 234 567",
+      "email": "riad.mourad@email.dz",
+      "license_category": "C1",
+      "registration_date": "2024-08-12",
+      "documents_submitted": 6,
+      "documents_required": 6,
+      "current_phase": "Parking",
+      "sessions_completed": 10,
+      "sessions_recommended": 15,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 22666,
+        "remaining": 11334,
+        "percentage_paid": 67
+      },
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-09-15",
+          "result": "Passed",
+          "attempt": 1,
+          "score": "35/40",
+          "notes": "Satisfactory performance"
+        }
+      ],
+      "scheduled_exam": null,
+      "training_sessions": [],
+      "payment_history": [
+        {
+          "date": "2024-08-12",
+          "amount": 11333,
+          "description": "Initial payment"
+        },
+        {
+          "date": "2024-09-20",
+          "amount": 11333,
+          "description": "Second payment"
+        }
+      ]
+    }
+  ],
+  "graduated_candidates": [
+    {
+      "id": "RB013",
+      "full_name": "Rachid Benchelkh",
+      "phone": "+213 555 789 012",
+      "license_category": "B",
+      "registration_date": "2024-06-01",
+      "completion_date": "2024-09-18",
+      "duration_days": 109,
+      "total_exam_attempts": 3,
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-07-10",
+          "result": "Passed",
+          "attempt": 1
+        },
+        {
+          "phase": "Parking",
+          "exam_date": "2024-08-05",
+          "result": "Passed",
+          "attempt": 1
+        },
+        {
+          "phase": "Driving",
+          "exam_date": "2024-09-18",
+          "result": "Passed",
+          "attempt": 1
+        }
+      ]
+    },
+    {
+      "id": "LH014",
+      "full_name": "Leila Hamdani",
+      "phone": "+213 555 890 123",
+      "license_category": "B",
+      "registration_date": "2024-05-15",
+      "completion_date": "2024-10-05",
+      "duration_days": 143,
+      "total_exam_attempts": 5,
+      "payment_status": {
+        "total_fee": 34000,
+        "paid": 34000,
+        "remaining": 0,
+        "percentage_paid": 100
+      },
+      "training_sessions_completed": 6,
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-06-10",
+          "result": "Passed",
+          "attempt": 1,
+          "notes": "Good understanding"
+        },
+        {
+          "phase": "Parking",
+          "exam_date": "2024-07-15",
+          "result": "Failed",
+          "attempt": 1,
+          "notes": "Failed parallel parking"
+        },
+        {
+          "phase": "Parking",
+          "exam_date": "2024-08-02",
+          "result": "Passed",
+          "attempt": 2,
+          "notes": "Much improved"
+        },
+        {
+          "phase": "Driving",
+          "exam_date": "2024-08-20",
+          "result": "Failed",
+          "attempt": 1,
+          "notes": "Speed control issues"
+        },
+        {
+          "phase": "Driving",
+          "exam_date": "2024-10-05",
+          "result": "Passed",
+          "attempt": 2,
+          "notes": "Good improvement"
+        }
+      ],
+      "payment_history": [
+        {
+          "date": "2024-05-15",
+          "amount": 34000,
+          "description": "Full payment"
+        }
+      ]
+    },
+    {
+      "id": "OB015",
+      "full_name": "Omar Belaidi",
+      "phone": "+213 555 901 234",
+      "license_category": "C1",
+      "registration_date": "2024-04-10",
+      "completion_date": "2024-08-22",
+      "duration_days": 134,
+      "total_exam_attempts": 3,
+      "exam_history": [
+        {
+          "phase": "Highway Code",
+          "exam_date": "2024-06-05",
+          "result": "Passed",
+          "attempt": 1
+        },
+        {
+          "phase": "Parking",
+          "exam_date": "2024-07-20",
+          "result": "Passed",
+          "attempt": 1
+        },
+        {
+          "phase": "Driving",
+          "exam_date": "2024-08-22",
+          "result": "Passed",
+          "attempt": 1
+        }
+      ]
+    }
+  ],
+  "scheduled_sessions": [
+    {
+      "id": "SS001",
+      "candidate_id": "AK001",
+      "instructor_id": "MC",
+      "phase": "Parking",
+      "date": "2024-10-26",
+      "time": "10:00",
+      "status": "scheduled"
+    },
+    {
+      "id": "SS002",
+      "candidate_id": "YM002",
+      "instructor_id": "MC",
+      "phase": "Highway Code",
+      "date": "2024-10-26",
+      "time": "14:00",
+      "status": "scheduled"
+    },
+    {
+      "id": "SS003",
+      "candidate_id": "FB003",
+      "instructor_id": "RB",
+      "phase": "Driving",
+      "date": "2024-10-27",
+      "time": "09:00",
+      "status": "scheduled"
+    },
+    {
+      "id": "SS004",
+      "candidate_id": "NM006",
+      "instructor_id": "SL",
+      "phase": "Parking",
+      "date": "2024-10-28",
+      "time": "11:00",
+      "status": "scheduled"
+    },
+    {
+      "id": "SS005",
+      "candidate_id": "BK007",
+      "instructor_id": "RB",
+      "phase": "Driving",
+      "date": "2024-10-29",
+      "time": "14:00",
+      "status": "scheduled"
+    },
+    {
+      "id": "SS006",
+      "candidate_id": "LD009",
+      "instructor_id": "MC",
+      "phase": "Parking",
+      "date": "2024-10-30",
+      "time": "09:00",
+      "status": "scheduled"
+    },
+    {
+      "id": "SS007",
+      "candidate_id": "MT010",
+      "instructor_id": "SL",
+      "phase": "Driving",
+      "date": "2024-10-31",
+      "time": "15:00",
+      "status": "scheduled"
+    },
+    {
+      "id": "SS008",
+      "candidate_id": "RM012",
+      "instructor_id": "RB",
+      "phase": "Parking",
+      "date": "2024-11-01",
+      "time": "10:00",
+      "status": "scheduled"
+    }
+  ],
+  "scheduled_exams": [
+    {
+      "id": "SE001",
+      "candidate_id": "AK001",
+      "phase": "Parking",
+      "exam_date": "2024-10-25",
+      "previous_attempts": 0,
+      "sessions_completed": 10,
+      "sessions_recommended": 15
+    },
+    {
+      "id": "SE002",
+      "candidate_id": "YM002",
+      "phase": "Highway Code",
+      "exam_date": "2024-10-20",
+      "previous_attempts": 0,
+      "sessions_completed": 18,
+      "sessions_recommended": 25
+    },
+    {
+      "id": "SE003",
+      "candidate_id": "FB003",
+      "phase": "Driving",
+      "exam_date": "2024-11-05",
+      "previous_attempts": 0,
+      "sessions_completed": 8,
+      "sessions_recommended": 15
+    }
+  ],
+  "payments": [
+    {
+      "date": "2024-10-10",
+      "candidate_id": "FB003",
+      "amount": 11334
+    },
+    {
+      "date": "2024-10-10",
+      "candidate_id": "KH004",
+      "amount": 11333
+    },
+    {
+      "date": "2024-10-05",
+      "candidate_id": "SB005",
+      "amount": 17000
+    },
+    {
+      "date": "2024-10-01",
+      "candidate_id": "AK001",
+      "amount": 11333
+    },
+    {
+      "date": "2024-10-01",
+      "candidate_id": "YM002",
+      "amount": 34000
+    },
+    {
+      "date": "2024-09-15",
+      "candidate_id": "AK001",
+      "amount": 11333
+    },
+    {
+      "date": "2024-09-05",
+      "candidate_id": "FB003",
+      "amount": 11333
+    },
+    {
+      "date": "2024-09-05",
+      "candidate_id": "SB005",
+      "amount": 17000
+    },
+    {
+      "date": "2024-08-20",
+      "candidate_id": "FB003",
+      "amount": 11333
+    },
+    {
+      "date": "2024-09-28",
+      "candidate_id": "LD009",
+      "amount": 11333
+    },
+    {
+      "date": "2024-09-20",
+      "candidate_id": "RM012",
+      "amount": 11333
+    },
+    {
+      "date": "2024-09-15",
+      "candidate_id": "MT010",
+      "amount": 17000
+    },
+    {
+      "date": "2024-09-10",
+      "candidate_id": "NM006",
+      "amount": 11333
+    }
+  ],
+  "exam_results": [
+    {
+      "candidate_id": "LH014",
+      "phase": "Highway Code",
+      "exam_date": "2024-06-10",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Good understanding"
+    },
+    {
+      "candidate_id": "LH014",
+      "phase": "Parking",
+      "exam_date": "2024-07-15",
+      "result": "Failed",
+      "attempt": 1,
+      "notes": "Failed parallel parking"
+    },
+    {
+      "candidate_id": "LH014",
+      "phase": "Parking",
+      "exam_date": "2024-08-02",
+      "result": "Passed",
+      "attempt": 2,
+      "notes": "Much improved"
+    },
+    {
+      "candidate_id": "LH014",
+      "phase": "Driving",
+      "exam_date": "2024-08-20",
+      "result": "Failed",
+      "attempt": 1,
+      "notes": "Speed control issues"
+    },
+    {
+      "candidate_id": "LH014",
+      "phase": "Driving",
+      "exam_date": "2024-10-05",
+      "result": "Passed",
+      "attempt": 2,
+      "notes": "Good improvement"
+    },
+    {
+      "candidate_id": "AK001",
+      "phase": "Highway Code",
+      "exam_date": "2024-09-10",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Excellent performance"
+    },
+    {
+      "candidate_id": "FB003",
+      "phase": "Highway Code",
+      "exam_date": "2024-09-10",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Good understanding"
+    },
+    {
+      "candidate_id": "FB003",
+      "phase": "Parking",
+      "exam_date": "2024-10-15",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Confident maneuvers"
+    },
+    {
+      "candidate_id": "SB005",
+      "phase": "Highway Code",
+      "exam_date": "2024-08-15",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Excellent"
+    },
+    {
+      "candidate_id": "SB005",
+      "phase": "Parking",
+      "exam_date": "2024-09-20",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Good technical skills"
+    },
+    {
+      "candidate_id": "BK007",
+      "phase": "Highway Code",
+      "exam_date": "2024-08-20",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Satisfactory"
+    },
+    {
+      "candidate_id": "BK007",
+      "phase": "Parking",
+      "exam_date": "2024-09-25",
+      "result": "Passed",
+      "attempt": 2,
+      "notes": "Improved after first attempt"
+    },
+    {
+      "candidate_id": "NM006",
+      "phase": "Highway Code",
+      "exam_date": "2024-09-05",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Good performance"
+    },
+    {
+      "candidate_id": "LD009",
+      "phase": "Highway Code",
+      "exam_date": "2024-09-28",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Perfect score"
+    },
+    {
+      "candidate_id": "MT010",
+      "phase": "Highway Code",
+      "exam_date": "2024-09-02",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Very good"
+    },
+    {
+      "candidate_id": "MT010",
+      "phase": "Parking",
+      "exam_date": "2024-10-08",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Confident parking"
+    },
+    {
+      "candidate_id": "RM012",
+      "phase": "Highway Code",
+      "exam_date": "2024-09-15",
+      "result": "Passed",
+      "attempt": 1,
+      "notes": "Satisfactory performance"
+    }
+  ],
+  "maintenance_logs": [
+    {
+      "vehicle_id": "V001",
+      "date": "2024-10-24",
+      "description": "Weekly check: Oil level good, tire pressure adjusted, brakes tested, interior cleaned"
+    },
+    {
+      "vehicle_id": "V001",
+      "date": "2024-10-17",
+      "description": "Weekly check: All systems normal, minor scratches noted on rear bumper"
+    },
+    {
+      "vehicle_id": "V002",
+      "date": "2024-10-10",
+      "description": "Front left tire pressure low - adjusted. Oil change scheduled for next week"
+    },
+    {
+      "vehicle_id": "V003",
+      "date": "2024-10-24",
+      "description": "Weekly inspection complete - excellent condition, all systems functioning properly"
+    },
+    {
+      "vehicle_id": "V001",
+      "date": "2024-10-03",
+      "description": "Weekly maintenance: All systems checked, fluids topped up"
+    },
+    {
+      "vehicle_id": "V002",
+      "date": "2024-09-26",
+      "description": "Oil change completed, brakes inspected and adjusted"
+    },
+    {
+      "vehicle_id": "V003",
+      "date": "2024-09-19",
+      "description": "Routine maintenance: Tire rotation, alignment check, interior deep clean"
+    }
+  ],
+  "dashboard_stats": {
+    "total_candidates": 15,
+    "active_candidates": 12,
+    "graduated_candidates": 3,
+    "total_instructors": 3,
+    "active_vehicles": 3,
+    "total_collected": 135999,
+    "pending_payments": 34001,
+    "total_revenue": 170000,
+    "upcoming_exams": 3,
+    "upcoming_sessions": 8,
+    "maintenance_reminders": [
+      {
+        "vehicle_id": "V001",
+        "assigned_instructor_id": "MC",
+        "due_date": "2025-10-22"
+      },
+      {
+        "vehicle_id": "V002",
+        "assigned_instructor_id": "RB",
+        "due_date": "2025-10-22"
+      }
+    ]
+  }
+}
