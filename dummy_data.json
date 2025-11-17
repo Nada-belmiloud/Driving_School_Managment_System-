@@ -65,6 +65,14 @@
       "current_phase": "Parking",
       "sessions_completed": 10,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 22666,
@@ -182,6 +190,13 @@
       "current_phase": "Highway Code",
       "sessions_completed": 18,
       "sessions_recommended": 25,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "pending"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 34000,
@@ -224,6 +239,14 @@
       "current_phase": "Driving",
       "sessions_completed": 8,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 34000,
@@ -289,6 +312,14 @@
       "current_phase": "Highway Code",
       "sessions_completed": 15,
       "sessions_recommended": 25,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "pending"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "pending"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 11333,
@@ -319,6 +350,14 @@
       "current_phase": "Driving",
       "sessions_completed": 2,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 34000,
@@ -367,6 +406,14 @@
       "current_phase": "Parking",
       "sessions_completed": 12,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 22666,
@@ -409,6 +456,14 @@
       "current_phase": "Driving",
       "sessions_completed": 5,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 17000,
@@ -452,6 +507,14 @@
       "current_phase": "Highway Code",
       "sessions_completed": 22,
       "sessions_recommended": 25,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 11333,
@@ -482,6 +545,14 @@
       "current_phase": "Parking",
       "sessions_completed": 8,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "pending"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 22666,
@@ -524,6 +595,14 @@
       "current_phase": "Driving",
       "sessions_completed": 11,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 34000,
@@ -572,6 +651,14 @@
       "current_phase": "Highway Code",
       "sessions_completed": 20,
       "sessions_recommended": 25,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 11333,
@@ -602,6 +689,14 @@
       "current_phase": "Parking",
       "sessions_completed": 10,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 22666,
@@ -644,6 +739,14 @@
       "current_phase": "Parking",
       "sessions_completed": 18,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 22666,
@@ -698,6 +801,14 @@
       "current_phase": "Highway Code",
       "sessions_completed": 28,
       "sessions_recommended": 25,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "pending"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 11333,
@@ -741,6 +852,14 @@
       "current_phase": "Driving",
       "sessions_completed": 11,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 34000,
@@ -801,6 +920,14 @@
       "current_phase": "Highway Code",
       "sessions_completed": 18,
       "sessions_recommended": 25,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 34000,
@@ -835,6 +962,14 @@
       "current_phase": "Parking",
       "sessions_completed": 12,
       "sessions_recommended": 15,
+      "documents_checklist": [
+        {"document_name": "Birth certificate", "status": "submitted"},
+        {"document_name": "Residence certificate", "status": "submitted"},
+        {"document_name": "6 photos", "status": "submitted"},
+        {"document_name": "Medical certificate", "status": "submitted"},
+        {"document_name": "National ID copy", "status": "submitted"},
+        {"document_name": "Parental authorization (if under 19)", "status": "submitted"}
+      ],
       "payment_status": {
         "total_fee": 34000,
         "paid": 22666,
