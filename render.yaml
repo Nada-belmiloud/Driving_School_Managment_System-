@@ -1,0 +1,55 @@
+# Render Blueprint for Driving School Management System
+# This file defines the infrastructure for deploying to Render
+# Documentation: https://render.com/docs/blueprint-spec
+
+services:
+  # Backend API Service
+  - type: web
+    name: driving-school-backend
+    runtime: node
+    region: oregon # Choose your preferred region
+    plan: free # Free tier for students
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000 # Render uses port 10000 by default
+      - key: MONGO_URI
+        sync: false # Set this in Render dashboard with your MongoDB Atlas connection string
+      - key: JWT_SECRET
+        generateValue: true # Render will auto-generate a secure secret
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: DEFAULT_PAGE_SIZE
+        value: 10
+      - key: MAX_PAGE_SIZE
+        value: 100
+      - key: CORS_ORIGIN
+        fromService:
+          type: web
+          name: driving-school-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+    healthCheckPath: /health
+    autoDeploy: true # Auto-deploy on git push
+
+  # Frontend Web Service
+  - type: web
+    name: driving-school-frontend
+    runtime: node
+    region: oregon # Should match backend region for lower latency
+    plan: free # Free tier for students
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Note: NEXT_PUBLIC_API_URL needs to be set manually with /api/v1 suffix
+      # Example: https://your-backend.onrender.com/api/v1
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # Must be set manually in Render dashboard
+    autoDeploy: true # Auto-deploy on git push
+
+# Database - You'll need to set up MongoDB Atlas separately (free tier available)
+# Connection string should be added to the backend's MONGO_URI environment variable
