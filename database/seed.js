@@ -1,4 +1,3 @@
-// database/seed.js
 const mongoose = require("mongoose");
 const connectDB = require("./db");
 const {
@@ -34,7 +33,7 @@ const seedData = async () => {
       Admin.deleteMany({}),
     ]);
 
-    // 1️⃣ Vehicles
+    //  Vehicles
     const vehicle1 = await Vehicle.create({
       category: "Car",
       model: "Toyota Corolla",
@@ -42,7 +41,7 @@ const seedData = async () => {
       status: "active",
       maintenance_history: [
         {
-          maintenance_id: new mongoose.Types.ObjectId(),
+          // maintenance_id removed here
           date: new Date("2025-01-15"),
           description: "Oil change",
           status: "done",
@@ -58,7 +57,7 @@ const seedData = async () => {
       maintenance_history: [],
     });
 
-    // 2️⃣ Instructors
+    //  Instructors
     const instructor1 = await Instructor.create({
       name: "Ali Ben Ahmed",
       phone: "0555123456",
@@ -82,7 +81,7 @@ const seedData = async () => {
       availability: [{ date: new Date(), start_time: "10:00", end_time: "13:00" }],
     });
 
-    // 3️⃣ Candidates
+    //  Candidates
     const candidate1 = await Candidate.create({
       name: "John Doe",
       phone: "0666123456",
@@ -117,7 +116,7 @@ const seedData = async () => {
       progress: { creno_hours: 2, code_hours: 8, conduite_hours: 4 },
     });
 
-    // 4️⃣ Payment Plans
+    //  Payment Plans
     const plan1 = await PaymentPlan.create({
       name: "Full Payment",
       number_of_installments: 1,
@@ -130,7 +129,7 @@ const seedData = async () => {
       total_amount: 55000,
     });
 
-    // 5️⃣ Enrollments
+    //  Enrollments
     await Enrollment.create({
       candidate_id: candidate1._id,
       plan_pay_id: plan1._id,
@@ -147,7 +146,7 @@ const seedData = async () => {
       status: "active",
     });
 
-    // 6️⃣ Payments
+    //  Payments
     await Payment.create({
       candidate_id: candidate1._id,
       plan_pay_id: plan1._id,
@@ -168,7 +167,7 @@ const seedData = async () => {
       status: "completed",
     });
 
-    // 7️⃣ Courses
+    //  Courses
     const course1 = await Course.create({
       type: "theory",
       title: "Road Rules",
@@ -183,7 +182,7 @@ const seedData = async () => {
       price: 10000,
     });
 
-    // 8️⃣ Exams
+    //  Exams
     const exam1 = await Exam.create({
       course_id: course1._id,
       exam_type: "theory",
@@ -196,7 +195,7 @@ const seedData = async () => {
       date: new Date(),
     });
 
-    // 9️⃣ Exam Results
+    //  Exam Results
     await ExamResult.create({
       exam_id: exam1._id,
       candidate_id: candidate1._id,
@@ -211,10 +210,11 @@ const seedData = async () => {
       status: "fail",
     });
 
-    // 🔟 Sessions
+    //  Sessions (Updated with vehicle_id)
     await Session.create({
       candidate_id: candidate1._id,
       instructor_id: instructor1._id,
+      vehicle_id: vehicle1._id, // Added vehicle reference for a practical session
       session_type: "creno",
       date: new Date(),
       time: "09:00",
@@ -224,20 +224,21 @@ const seedData = async () => {
     await Session.create({
       candidate_id: candidate2._id,
       instructor_id: instructor2._id,
+      vehicle_id: vehicle2._id, // Added vehicle reference for a practical session
       session_type: "code",
       date: new Date(),
       time: "10:00",
       status: "scheduled",
     });
 
-    // 11️⃣ Admins
+    // 1 Admins
     await Admin.create({
       username: "admin",
       password: "$2b$10$hashedpassword", // replace with real hashed password
       email: "admin@example.com",
     });
 
-    console.log("✅ Database seeded successfully!");
+    console.log("Database seeded successfully!");
     process.exit();
   } catch (err) {
     console.error(err);
