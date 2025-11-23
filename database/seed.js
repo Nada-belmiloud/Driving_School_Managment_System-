@@ -131,7 +131,7 @@ const seedData = async () => {
     });
 
     // 5️⃣ Enrollments
-    const enrollment1 = await Enrollment.create({
+    await Enrollment.create({
       candidate_id: candidate1._id,
       plan_pay_id: plan1._id,
       license_category: "B",
