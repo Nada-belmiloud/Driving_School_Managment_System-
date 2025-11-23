@@ -10,7 +10,7 @@ const candidateSchema = new Schema({
    trim: true,
    unique: true,
    match: [/^\d{10}$/, "Phone must be 10 digits"]
-  }
+  },
   address: { type: String, required: true, trim: true },
 
   date_of_birth: { type: Date, required: true },
@@ -35,6 +35,7 @@ const candidateSchema = new Schema({
   },
 
   progress: {
+    // Note: It's recommended to calculate progress by aggregating completed sessions (Session.status: 'completed')
     creno_hours: { type: Number, default: 0 },
     code_hours: { type: Number, default: 0 },
     conduite_hours: { type: Number, default: 0 },
@@ -53,7 +54,7 @@ const instructorSchema = new Schema({
    trim: true,
    unique: true,
    match: [/^\d{10}$/, "Phone must be 10 digits"]
-  }
+  },
   email: { 
     type: String,
     required: true,
@@ -89,7 +90,7 @@ const vehicleSchema = new Schema({
 
   maintenance_history: [
     {
-      maintenance_id: Schema.Types.ObjectId,
+      // Removed redundant 'maintenance_id' as MongoDB provides a default _id
       date: { type: Date, required: true },
       description: { type: String, required: true },
       status: { type: String, required: true },
@@ -174,8 +175,10 @@ const ExamResult = mongoose.model("ExamResult", examResultSchema);
 const sessionSchema = new Schema({
   candidate_id: { type: Schema.Types.ObjectId, ref: "Candidate", required: true },
   instructor_id: { type: Schema.Types.ObjectId, ref: "Instructor", required: true },
+  // ADDED: Link session to the vehicle used for practical sessions
+  vehicle_id: { type: Schema.Types.ObjectId, ref: "Vehicle", default: null }, 
 
-  session_type: { type: String, required: true },
+  session_type: { type: String, required: true }, // e.g., 'creno', 'code', 'conduite'
   date: { type: Date, required: true },
   time: { type: String, required: true },
   status: { type: String, default: "scheduled" },
@@ -187,7 +190,7 @@ const Session = mongoose.model("Session", sessionSchema);
 // 11. Admins
 const adminSchema = new Schema({
   username: { type: String, required: true, unique: true, trim: true },
-  password: { type: String, required: true }, // hashed
+  password: { type: String, required: true }, // IMPORTANT: Use bcrypt to hash this password before saving
   email: { 
     type: String, 
     required: true,
