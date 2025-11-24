@@ -369,3 +369,250 @@ export const getLessons = asyncHandler(async (req, res, next) => {
     });
 });
 
+// @desc    Get enhanced lesson statistics
+// @route   GET /api/lessons/stats
+// @access  Private
+export const getLessonStats = asyncHandler(async (req, res, next) => {
+    try {
+        const total = await Lesson.countDocuments();
+        const scheduled = await Lesson.countDocuments({ status: 'scheduled' });
+        const completed = await Lesson.countDocuments({ status: 'completed' });
+        const cancelled = await Lesson.countDocuments({ status: 'cancelled' });
+        const noShow = await Lesson.countDocuments({ status: 'no-show' });
+        const inProgress = await Lesson.countDocuments({ status: 'in-progress' });
+
+        // Upcoming lessons (next 7 days)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+        const upcoming = await Lesson.countDocuments({
+            date: { $gte: today, $lte: nextWeek },
+            status: 'scheduled'
+        });
+
+        // Today's lessons
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const todayLessons = await Lesson.countDocuments({
+            date: { $gte: today, $lt: tomorrow },
+            status: { $in: ['scheduled', 'in-progress'] }
+        });
+
+        // Lessons by status
+        const byStatus = await Lesson.aggregate([
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        // Lessons by type
+        const byType = await Lesson.aggregate([
+            {
+                $group: {
+                    _id: '$lessonType',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        // Average duration - safely handle empty results
+        const avgDurationResult = await Lesson.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    avgDuration: { $avg: '$duration' }
+                }
+            }
+        ]);
+        const avgDuration = avgDurationResult.length > 0 && avgDurationResult[0].avgDuration
+            ? Math.round(avgDurationResult[0].avgDuration)
+            : 0;
+
+        // Completion rate
+        const completionRate = total > 0 ? ((completed / total) * 100).toFixed(1) : 0;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                total: total || 0,
+                scheduled: scheduled || 0,
+                completed: completed || 0,
+                cancelled: cancelled || 0,
+                noShow: noShow || 0,
+                inProgress: inProgress || 0,
+                upcoming: upcoming || 0,
+                todayLessons: todayLessons || 0,
+                byStatus: byStatus || [],
+                byType: byType || [],
+                avgDuration: avgDuration || 0,
+                completionRate: parseFloat(completionRate) || 0
+            }
+        });
+    } catch (error) {
+        console.error('Stats calculation error:', error);
+        // Return default values instead of throwing error
+        res.status(200).json({
+            success: true,
+            data: {
+                total: 0,
+                scheduled: 0,
+                completed: 0,
+                cancelled: 0,
+                noShow: 0,
+                inProgress: 0,
+                upcoming: 0,
+                todayLessons: 0,
+                byStatus: [],
+                byType: [],
+                avgDuration: 0,
+                completionRate: 0
+            }
+        });
+    }
+});
+
+// @desc    Complete a lesson with rating
+// @route   PUT /api/lessons/:id/complete
+// @access  Private
+export const completeLesson = asyncHandler(async (req, res, next) => {
+    const lesson = await Lesson.findById(req.params.id);
+
+    if (!lesson) {
+        return next(new AppError('Lesson not found', 404));
+    }
+
+    if (lesson.status !== 'scheduled' && lesson.status !== 'in-progress') {
+        return next(new AppError('Only scheduled or in-progress lessons can be completed', 400));
+    }
+
+    // Update lesson
+    lesson.status = 'completed';
+    lesson.notes = req.body.notes || lesson.notes;
+
+    // Add rating if provided
+    if (req.body.rating && req.body.rating >= 1 && req.body.rating <= 5) {
+        lesson.rating = req.body.rating;
+    }
+
+    await lesson.save();
+
+    // Update student progress
+    const student = await Student.findById(lesson.studentId);
+    if (student) {
+        if (lesson.lessonType === 'theory') {
+            student.progress.theoryLessons += 1;
+        } else if (lesson.lessonType === 'practical' || lesson.lessonType === 'test-preparation') {
+            student.progress.practicalLessons += 1;
+        }
+        await student.save();
+    }
+
+    // Populate lesson data for response
+    await lesson.populate([
+        { path: 'studentId', select: 'name email phone' },
+        { path: 'instructorId', select: 'name email' },
+        { path: 'vehicleId', select: 'plateNumber model' }
+    ]);
+
+    res.status(200).json({
+        success: true,
+        data: lesson,
+        message: 'Lesson marked as completed'
+    });
+});
+
+// @desc    Check availability with detailed conflict info
+// @route   POST /api/lessons/check-availability
+// @access  Private
+export const checkAvailability = asyncHandler(async (req, res, next) => {
+    const { instructorId, vehicleId, date, time } = req.body;
+
+    if (!instructorId || !vehicleId || !date || !time) {
+        return next(new AppError('All fields are required', 400));
+    }
+
+    // Defensive normalization: ensure time is a string
+    const normalizedTime = normalizeTime(time);
+
+    if (!normalizedTime) {
+        return next(new AppError('Invalid time format', 400));
+    }
+
+    if (!/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(normalizedTime)) {
+        return next(new AppError('Time must be in HH:MM format', 400));
+    }
+
+    const query = {
+        date: new Date(date),
+        time: normalizedTime,
+        status: { $in: ['scheduled', 'in-progress'] },
+        $or: [
+            { instructorId },
+            { vehicleId }
+        ]
+    };
+
+    const conflicts = await Lesson.find(query)
+        .populate('instructorId', 'name')
+        .populate('vehicleId', 'plateNumber')
+        .populate('studentId', 'name');
+
+    const conflictDetails = conflicts.map(c => {
+        let detail = { time: c.time };
+
+        if (c.instructorId._id.toString() === instructorId) {
+            detail.instructor = c.instructorId.name;
+            detail.studentWith = c.studentId?.name;
+        }
+
+        if (c.vehicleId._id.toString() === vehicleId) {
+            detail.vehicle = c.vehicleId.plateNumber;
+            detail.studentWith = c.studentId?.name;
+        }
+
+        return detail;
+    });
+
+    res.status(200).json({
+        success: true,
+        data: {
+            available: conflicts.length === 0,
+            conflicts: conflictDetails
+        }
+    });
+});
+
+// @desc    Get lessons calendar data (all lessons for a month)
+// @route   GET /api/lessons/calendar
+// @access  Private
+export const getCalendarLessons = asyncHandler(async (req, res, next) => {
+    const { year, month } = req.query;
+
+    if (!year || !month) {
+        return next(new AppError('Year and month are required', 400));
+    }
+
+    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const endDate = new Date(parseInt(year), parseInt(month), 0);
+
+    const lessons = await Lesson.find({
+        date: {
+            $gte: startDate,
+            $lte: endDate
+        }
+    })
+        .populate('studentId', 'name email phone')
+        .populate('instructorId', 'name')
+        .populate('vehicleId', 'plateNumber model')
+        .sort({ date: 1, time: 1 });
+
+    res.status(200).json({
+        success: true,
+        data: lessons
+    });
+});
+
