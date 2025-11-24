@@ -616,3 +616,126 @@ export const getCalendarLessons = asyncHandler(async (req, res, next) => {
     });
 });
 
+// @desc    Bulk schedule lessons
+// @route   POST /api/lessons/bulk-schedule
+// @access  Private
+export const bulkScheduleLessons = asyncHandler(async (req, res, next) => {
+    const { lessons } = req.body;
+
+    if (!lessons || !Array.isArray(lessons) || lessons.length === 0) {
+        return next(new AppError('Please provide an array of lessons', 400));
+    }
+
+    const createdLessons = [];
+    const errors = [];
+
+    for (let i = 0; i < lessons.length; i++) {
+        try {
+            const lessonData = lessons[i];
+
+            // Validate required fields
+            if (!lessonData.studentId || !lessonData.instructorId || !lessonData.vehicleId ||
+                !lessonData.date || !lessonData.time) {
+                errors.push({
+                    index: i,
+                    error: 'Missing required fields'
+                });
+                continue;
+            }
+
+            // Defensive normalization: ensure time is a string
+            const normalizedTime = normalizeTime(lessonData.time);
+
+            if (!normalizedTime) {
+                errors.push({
+                    index: i,
+                    error: 'Invalid time format'
+                });
+                continue;
+            }
+
+            if (!/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(normalizedTime)) {
+                errors.push({
+                    index: i,
+                    error: 'Time must be in HH:MM format'
+                });
+                continue;
+            }
+
+            // Check for conflicts with normalized time
+            const conflicts = await Lesson.find({
+                date: new Date(lessonData.date),
+                time: normalizedTime,
+                status: { $in: ['scheduled', 'in-progress'] },
+                $or: [
+                    { instructorId: lessonData.instructorId },
+                    { vehicleId: lessonData.vehicleId }
+                ]
+            });
+
+            if (conflicts.length > 0) {
+                errors.push({
+                    index: i,
+                    error: 'Schedule conflict detected'
+                });
+                continue;
+            }
+
+            // Create lesson with normalized time
+            const normalizedLessonData = { ...lessonData, time: normalizedTime };
+            const lesson = await Lesson.create(normalizedLessonData);
+            await lesson.populate([
+                { path: 'studentId', select: 'name email' },
+                { path: 'instructorId', select: 'name email' },
+                { path: 'vehicleId', select: 'plateNumber model' }
+            ]);
+
+            createdLessons.push(lesson);
+        } catch (error) {
+            errors.push({
+                index: i,
+                error: error.message
+            });
+        }
+    }
+
+    res.status(201).json({
+        success: true,
+        data: {
+            created: createdLessons,
+            errors,
+            summary: {
+                total: lessons.length,
+                successful: createdLessons.length,
+                failed: errors.length
+            }
+        },
+        message: `${createdLessons.length} lessons scheduled successfully${errors.length > 0 ? `, ${errors.length} failed` : ''}`
+    });
+});
+
+// @desc    Get upcoming lessons for dashboard
+// @route   GET /api/lessons/upcoming
+// @access  Private
+export const getUpcomingLessons = asyncHandler(async (req, res, next) => {
+
+    const limit = parseInt(req.query.limit) || 10;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const lessons = await Lesson.find({
+        date: { $gte: today },
+        status: 'scheduled'
+    })
+        .populate('studentId', 'name email phone')
+        .populate('instructorId', 'name')
+        .populate('vehicleId', 'plateNumber model')
+        .sort({ date: 1, time: 1 })
+        .limit(limit);
+
+    res.status(200).json({
+        success: true,
+        count: lessons.length,
+        data: lessons
+    });
+});
