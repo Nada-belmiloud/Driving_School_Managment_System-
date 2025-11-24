@@ -229,3 +229,290 @@ export const deleteVehicle = asyncHandler(async (req, res, next) => {
     });
 });
 
+// @desc    Get vehicle availability
+// @route   GET /api/vehicles/:id/availability
+// @access  Private
+export const getVehicleAvailability = asyncHandler(async (req, res, next) => {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+        return next(new AppError('Vehicle not found', 404));
+    }
+
+    const { date, startDate, endDate } = req.query;
+
+    let dateQuery = {};
+    if (date) {
+        dateQuery.date = new Date(date);
+    } else if (startDate && endDate) {
+        dateQuery.date = {
+            $gte: new Date(startDate),
+            $lte: new Date(endDate)
+        };
+    } else {
+        return next(new AppError('Date parameter is required', 400));
+    }
+
+    // Get all lessons for this vehicle in the date range
+    const lessons = await Lesson.find({
+        vehicleId: req.params.id,
+        ...dateQuery,
+        status: { $in: ['scheduled', 'in-progress'] }
+    })
+        .select('date time duration status studentId instructorId')
+        .populate('studentId', 'name')
+        .populate('instructorId', 'name')
+        .sort({ date: 1, time: 1 });
+
+    const isAvailable = vehicle.status === 'available' && lessons.length === 0;
+
+    res.status(200).json({
+        success: true,
+        data: {
+            vehicle: {
+                id: vehicle._id,
+                plateNumber: vehicle.plateNumber,
+                model: vehicle.model,
+                status: vehicle.status
+            },
+            dateRange: { startDate: startDate || date, endDate: endDate || date },
+            isAvailable,
+            scheduledLessons: lessons
+        }
+    });
+});
+
+// @desc    Get vehicle maintenance history
+// @route   GET /api/vehicles/:id/maintenance
+// @access  Private
+export const getVehicleMaintenanceHistory = asyncHandler(async (req, res, next) => {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+        return next(new AppError('Vehicle not found', 404));
+    }
+
+    const maintenanceHistory = vehicle.maintenanceHistory.sort((a, b) => b.date - a.date);
+    const totalMaintenanceCost = vehicle.totalMaintenanceCost;
+
+    res.status(200).json({
+        success: true,
+        data: {
+            vehicle: {
+                plateNumber: vehicle.plateNumber,
+                model: vehicle.model,
+                currentMileage: vehicle.mileage
+            },
+            totalMaintenanceCost,
+            lastMaintenance: vehicle.lastMaintenance,
+            nextMaintenanceDate: vehicle.nextMaintenanceDate,
+            nextMaintenanceMileage: vehicle.nextMaintenanceMileage,
+            maintenanceDue: vehicle.maintenanceDue,
+            maintenanceHistory
+        }
+    });
+});
+
+// @desc    Add maintenance record
+// @route   POST /api/vehicles/:id/maintenance
+// @access  Private
+export const addMaintenanceRecord = asyncHandler(async (req, res, next) => {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+        return next(new AppError('Vehicle not found', 404));
+    }
+
+    const maintenanceRecord = {
+        date: req.body.date || new Date(),
+        type: req.body.type,
+        description: req.body.description,
+        cost: req.body.cost,
+        performedBy: req.body.performedBy,
+        nextMaintenanceDate: req.body.nextMaintenanceDate,
+        mileageAtService: req.body.mileageAtService || vehicle.mileage,
+        parts: req.body.parts || [],
+        notes: req.body.notes
+    };
+
+    vehicle.maintenanceHistory.push(maintenanceRecord);
+    vehicle.lastMaintenance = maintenanceRecord.date;
+
+    if (req.body.nextMaintenanceDate) {
+        vehicle.nextMaintenanceDate = req.body.nextMaintenanceDate;
+    }
+
+    if (req.body.nextMaintenanceMileage) {
+        vehicle.nextMaintenanceMileage = req.body.nextMaintenanceMileage;
+    }
+
+    // Update status if vehicle is being serviced
+    if (req.body.updateStatus && req.body.status) {
+        vehicle.status = req.body.status;
+    }
+
+    await vehicle.save();
+
+    res.status(200).json({
+        success: true,
+        data: vehicle,
+        message: 'Maintenance record added successfully'
+    });
+});
+
+// @desc    Update maintenance record
+// @route   PUT /api/vehicles/:id/maintenance/:maintenanceId
+// @access  Private
+export const updateMaintenanceRecord = asyncHandler(async (req, res, next) => {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+        return next(new AppError('Vehicle not found', 404));
+    }
+
+    const maintenanceRecord = vehicle.maintenanceHistory.id(req.params.maintenanceId);
+
+    if (!maintenanceRecord) {
+        return next(new AppError('Maintenance record not found', 404));
+    }
+
+    // Update fields
+    Object.keys(req.body).forEach(key => {
+        maintenanceRecord[key] = req.body[key];
+    });
+
+    await vehicle.save();
+
+    res.status(200).json({
+        success: true,
+        data: vehicle,
+        message: 'Maintenance record updated successfully'
+    });
+});
+
+// @desc    Delete maintenance record
+// @route   DELETE /api/vehicles/:id/maintenance/:maintenanceId
+// @access  Private
+export const deleteMaintenanceRecord = asyncHandler(async (req, res, next) => {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+        return next(new AppError('Vehicle not found', 404));
+    }
+
+    vehicle.maintenanceHistory.pull(req.params.maintenanceId);
+    await vehicle.save();
+
+    res.status(200).json({
+        success: true,
+        data: {},
+        message: 'Maintenance record deleted successfully'
+    });
+});
+
+// @desc    Get vehicle statistics
+// @route   GET /api/vehicles/stats
+// @access  Private
+export const getVehicleStats = asyncHandler(async (req, res, next) => {
+    const total = await Vehicle.countDocuments();
+    const available = await Vehicle.countDocuments({ status: 'available' });
+    const inUse = await Vehicle.countDocuments({ status: 'in-use' });
+    const maintenance = await Vehicle.countDocuments({ status: 'maintenance' });
+    const retired = await Vehicle.countDocuments({ status: 'retired' });
+
+    // Get vehicles needing maintenance
+    const allVehicles = await Vehicle.find();
+    const needingMaintenance = allVehicles.filter(v => v.maintenanceDue).length;
+
+    // Group by year
+    const byYear = await Vehicle.aggregate([
+        {
+            $group: {
+                _id: '$year',
+                count: { $sum: 1 }
+            }
+        },
+        { $sort: { _id: -1 } }
+    ]);
+
+    // Group by transmission
+    const byTransmission = await Vehicle.aggregate([
+        {
+            $group: {
+                _id: '$transmission',
+                count: { $sum: 1 }
+            }
+        }
+    ]);
+
+    // Group by fuel type
+    const byFuelType = await Vehicle.aggregate([
+        {
+            $group: {
+                _id: '$fuelType',
+                count: { $sum: 1 }
+            }
+        }
+    ]);
+
+    // Calculate total maintenance costs
+    const maintenanceCosts = await Vehicle.aggregate([
+        { $unwind: '$maintenanceHistory' },
+        {
+            $group: {
+                _id: null,
+                totalCost: { $sum: '$maintenanceHistory.cost' }
+            }
+        }
+    ]);
+
+    const totalMaintenanceCost = maintenanceCosts.length > 0 ? maintenanceCosts[0].totalCost : 0;
+
+    // Average vehicle age
+    const avgAge = allVehicles.length > 0
+        ? Math.round(allVehicles.reduce((sum, v) => sum + v.age, 0) / allVehicles.length)
+        : 0;
+
+    res.status(200).json({
+        success: true,
+        data: {
+            total,
+            available,
+            inUse,
+            maintenance,
+            retired,
+            needingMaintenance,
+            avgAge,
+            totalMaintenanceCost,
+            byYear,
+            byTransmission,
+            byFuelType
+        }
+    });
+});
+
+// @desc    Update vehicle mileage
+// @route   PATCH /api/vehicles/:id/mileage
+// @access  Private
+export const updateMileage = asyncHandler(async (req, res, next) => {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+        return next(new AppError('Vehicle not found', 404));
+    }
+
+    const { mileage } = req.body;
+
+    if (!mileage || mileage < vehicle.mileage) {
+        return next(new AppError('Invalid mileage value', 400));
+    }
+
+    vehicle.mileage = mileage;
+    await vehicle.save();
+
+    res.status(200).json({
+        success: true,
+        data: vehicle,
+        message: 'Mileage updated successfully'
+    });
+});
