@@ -312,4 +312,191 @@ export const getDashboardStats = asyncHandler(async (req, res, next) => {
     }
 });
 
+// @desc    Get activity timeline for dashboard
+// @route   GET /api/v1/dashboard/activities
+// @access  Private
+export const getRecentActivities = asyncHandler(async (req, res, next) => {
+    const limit = parseInt(req.query.limit) || 10;
 
+    try {
+        // Get recent activities from multiple collections
+        const [recentLessons, recentPayments, recentStudents] = await Promise.all([
+            Lesson.find()
+                .populate('studentId', 'name')
+                .populate('instructorId', 'name')
+                .sort('-createdAt')
+                .limit(limit),
+            Payment.find()
+                .populate('studentId', 'name')
+                .sort('-date')
+                .limit(limit),
+            Student.find()
+                .sort('-registrationDate')
+                .limit(limit)
+        ]);
+
+        // Combine and format activities
+        const activities = [];
+
+        recentLessons.forEach(lesson => {
+            activities.push({
+                type: 'lesson',
+                action: 'scheduled',
+                description: `Lesson scheduled for ${lesson.studentId?.name || 'Unknown'} with ${lesson.instructorId?.name || 'Unknown'}`,
+                date: lesson.createdAt || lesson.date,
+                data: {
+                    lessonType: lesson.lessonType,
+                    status: lesson.status,
+                    date: lesson.date
+                }
+            });
+        });
+
+        recentPayments.forEach(payment => {
+            activities.push({
+                type: 'payment',
+                action: payment.status === 'paid' ? 'received' : 'pending',
+                description: `Payment ${payment.status} from ${payment.studentId?.name || 'Unknown'} - $${payment.amount}`,
+                date: payment.date,
+                data: {
+                    amount: payment.amount,
+                    method: payment.method,
+                    status: payment.status
+                }
+            });
+        });
+
+        recentStudents.forEach(student => {
+            activities.push({
+                type: 'student',
+                action: 'registered',
+                description: `New student registered: ${student.name}`,
+                date: student.registrationDate,
+                data: {
+                    licenseType: student.licenseType,
+                    email: student.email
+                }
+            });
+        });
+
+        // Sort all activities by date
+        activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        res.status(200).json({
+            success: true,
+            count: activities.slice(0, limit).length,
+            data: activities.slice(0, limit)
+        });
+    } catch (error) {
+        console.error('Activities fetch error:', error);
+        res.status(200).json({
+            success: true,
+            count: 0,
+            data: []
+        });
+    }
+});
+
+// @desc    Get chart data for dashboard
+// @route   GET /api/v1/dashboard/charts
+// @access  Private
+export const getChartData = asyncHandler(async (req, res, next) => {
+    const { period = '7d' } = req.query;
+
+    try {
+        let startDate = new Date();
+        let groupBy;
+
+        // Determine date range and grouping
+        switch(period) {
+            case '7d':
+                startDate.setDate(startDate.getDate() - 7);
+                groupBy = { $dateToString: { format: "%Y-%m-%d", date: "$date" } };
+                break;
+            case '30d':
+                startDate.setDate(startDate.getDate() - 30);
+                groupBy = { $dateToString: { format: "%Y-%m-%d", date: "$date" } };
+                break;
+            case '90d':
+                startDate.setDate(startDate.getDate() - 90);
+                groupBy = { $dateToString: { format: "%Y-%W", date: "$date" } };
+                break;
+            case '12m':
+                startDate.setMonth(startDate.getMonth() - 12);
+                groupBy = { $dateToString: { format: "%Y-%m", date: "$date" } };
+                break;
+            default:
+                startDate.setDate(startDate.getDate() - 7);
+                groupBy = { $dateToString: { format: "%Y-%m-%d", date: "$date" } };
+        }
+
+        // Get lessons over time
+        const lessonsOverTime = await Lesson.aggregate([
+            { $match: { date: { $gte: startDate } } },
+            {
+                $group: {
+                    _id: groupBy,
+                    count: { $sum: 1 },
+                    completed: {
+                        $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+                    },
+                    cancelled: {
+                        $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] }
+                    }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Get revenue over time
+        const revenueOverTime = await Payment.aggregate([
+            { $match: { date: { $gte: startDate } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+                    total: { $sum: '$amount' },
+                    paid: {
+                        $sum: { $cond: [{ $eq: ['$status', 'paid'] }, '$amount', 0] }
+                    },
+                    pending: {
+                        $sum: { $cond: [{ $eq: ['$status', 'pending'] }, '$amount', 0] }
+                    }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        // Get student registrations over time
+        const studentsOverTime = await Student.aggregate([
+            { $match: { registrationDate: { $gte: startDate } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$registrationDate" } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                period,
+                lessons: lessonsOverTime,
+                revenue: revenueOverTime,
+                students: studentsOverTime
+            }
+        });
+    } catch (error) {
+        console.error('Chart data error:', error);
+        res.status(200).json({
+            success: true,
+            data: {
+                period,
+                lessons: [],
+                revenue: [],
+                students: []
+            }
+        });
+    }
+});
