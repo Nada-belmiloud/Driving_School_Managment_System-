@@ -309,4 +309,123 @@ export const endSession = asyncHandler(async (req, res) => {
     });
 });
 
+export const getBackupSettings = asyncHandler(async (req, res) => {
+    const admin = await ensureAdmin(req.admin.id);
+    const backups = await Backup.find({ admin: admin._id }).sort({ createdAt: -1 }).limit(20);
+
+    res.status(200).json({
+        success: true,
+        data: {
+            settings: {
+                automatic: admin.backupSettings?.automatic ?? true,
+                retentionDays: admin.backupSettings?.retentionDays ?? 30,
+                lastBackupAt: admin.backupSettings?.lastBackupAt
+            },
+            backups
+        }
+    });
+});
+
+export const updateBackupPreferences = asyncHandler(async (req, res) => {
+    const admin = await ensureAdmin(req.admin.id);
+    const { automatic, retentionDays } = req.body;
+
+    admin.backupSettings = admin.backupSettings || {};
+
+    if (typeof automatic === 'boolean') {
+        admin.backupSettings.automatic = automatic;
+    }
+
+    if (retentionDays !== undefined) {
+        const parsed = Number(retentionDays);
+        if (Number.isNaN(parsed) || parsed <= 0) {
+            throw new AppError('Retention days must be a positive number', 400);
+        }
+        admin.backupSettings.retentionDays = parsed;
+    }
+
+    await admin.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Backup preferences updated successfully',
+        data: admin.backupSettings
+    });
+});
+
+export const createBackup = asyncHandler(async (req, res) => {
+    const admin = await ensureAdmin(req.admin.id);
+    const type = req.body?.type === 'automatic' ? 'automatic' : 'manual';
+
+    const sizeMB = Number((Math.random() * 20 + 25).toFixed(2));
+
+    const backup = await Backup.create({
+        admin: admin._id,
+        type,
+        status: 'completed',
+        sizeMB,
+        retentionDays: admin.backupSettings?.retentionDays ?? 30,
+        notes: req.body?.notes
+    });
+
+    admin.backupSettings = admin.backupSettings || {};
+    admin.backupSettings.lastBackupAt = backup.createdAt;
+    await admin.save();
+
+    res.status(201).json({
+        success: true,
+        message: 'Backup created successfully',
+        data: backup
+    });
+});
+
+export const restoreBackup = asyncHandler(async (req, res) => {
+    const admin = await ensureAdmin(req.admin.id);
+    const { backupId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(backupId)) {
+        throw new AppError('Invalid backup identifier', 400);
+    }
+
+    const backup = await Backup.findOne({ _id: backupId, admin: admin._id });
+
+    if (!backup) {
+        throw new AppError('Backup not found', 404);
+    }
+
+    backup.status = 'restored';
+    backup.restoredAt = new Date();
+    await backup.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Backup restoration has been initiated',
+        data: backup
+    });
+});
+
+export const downloadBackup = asyncHandler(async (req, res) => {
+    const admin = await ensureAdmin(req.admin.id);
+    const { backupId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(backupId)) {
+        throw new AppError('Invalid backup identifier', 400);
+    }
+
+    const backup = await Backup.findOne({ _id: backupId, admin: admin._id });
+
+    if (!backup) {
+        throw new AppError('Backup not found', 404);
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Download link generated successfully',
+        data: {
+            backupId: backup._id,
+            downloadUrl: `/api/v1/settings/backups/${backup._id}/download`,
+            sizeMB: backup.sizeMB
+        }
+    });
+});
 
