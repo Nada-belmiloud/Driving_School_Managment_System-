@@ -180,4 +180,133 @@ export const getAppearanceSettings = asyncHandler(async (req, res) => {
     });
 });
 
+export const updateAppearanceSettings = asyncHandler(async (req, res) => {
+    const admin = await ensureAdmin(req.admin.id);
+
+    if ('language' in req.body) {
+        throw new AppError('Language settings are not yet available', 400);
+    }
+
+    const updates = {};
+
+    Object.entries(req.body || {}).forEach(([key, value]) => {
+        if (!allowedAppearanceFields.has(key)) {
+            return;
+        }
+
+        if (['theme'].includes(key)) {
+            const allowedThemes = ['light', 'dark', 'auto'];
+            if (!allowedThemes.includes(value)) {
+                throw new AppError('Invalid theme selected', 400);
+            }
+            updates[key] = value;
+            return;
+        }
+
+        if (['fontSize'].includes(key)) {
+            const allowedSizes = ['small', 'medium', 'large'];
+            if (!allowedSizes.includes(value)) {
+                throw new AppError('Invalid font size selected', 400);
+            }
+            updates[key] = value;
+            return;
+        }
+
+        if (['sidebarPosition'].includes(key)) {
+            const allowedPositions = ['left', 'right'];
+            if (!allowedPositions.includes(value)) {
+                throw new AppError('Invalid sidebar position selected', 400);
+            }
+            updates[key] = value;
+            return;
+        }
+
+        if (key === 'colorScheme') {
+            const allowedSchemes = ['blue', 'purple', 'green', 'red', 'orange'];
+            if (!allowedSchemes.includes(value)) {
+                throw new AppError('Invalid color scheme selected', 400);
+            }
+            updates[key] = value;
+            return;
+        }
+
+        if (['compactMode', 'showAnimations', 'highContrast'].includes(key)) {
+            updates[key] = Boolean(value);
+        }
+    });
+
+    if (!Object.keys(updates).length) {
+        throw new AppError('No valid appearance settings provided', 400);
+    }
+
+    admin.appearanceSettings = {
+        ...mergeWithDefaults(admin.appearanceSettings, DEFAULT_APPEARANCE_SETTINGS),
+        ...updates
+    };
+
+    await admin.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Appearance settings updated successfully',
+        data: admin.appearanceSettings
+    });
+});
+
+export const getSecuritySettings = asyncHandler(async (req, res) => {
+    const admin = await ensureAdmin(req.admin.id);
+    res.status(200).json({
+        success: true,
+        data: {
+            twoFactorEnabled: admin.securitySettings?.twoFactorEnabled ?? false,
+            lastPasswordChange: admin.securitySettings?.lastPasswordChange,
+            activeSessions: admin.securitySettings?.activeSessions ?? []
+        }
+    });
+});
+
+export const updateTwoFactor = asyncHandler(async (req, res) => {
+    const admin = await ensureAdmin(req.admin.id);
+    const { enabled } = req.body;
+
+    if (typeof enabled !== 'boolean') {
+        throw new AppError('Invalid two-factor authentication value', 400);
+    }
+
+    admin.securitySettings = admin.securitySettings || {};
+    admin.securitySettings.twoFactorEnabled = enabled;
+    await admin.save();
+
+    res.status(200).json({
+        success: true,
+        message: `Two-factor authentication ${enabled ? 'enabled' : 'disabled'} successfully`,
+        data: {
+            twoFactorEnabled: admin.securitySettings.twoFactorEnabled
+        }
+    });
+});
+
+export const endSession = asyncHandler(async (req, res) => {
+    const admin = await ensureAdmin(req.admin.id);
+    const { sessionId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+        throw new AppError('Invalid session identifier', 400);
+    }
+
+    const session = admin.securitySettings?.activeSessions?.id(sessionId);
+
+    if (!session) {
+        throw new AppError('Session not found', 404);
+    }
+
+    session.deleteOne();
+    await admin.save();
+
+    res.status(200).json({
+        success: true,
+        message: 'Session ended successfully'
+    });
+});
+
 
