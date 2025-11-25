@@ -1,6 +1,11 @@
 // backend/src/middleware/rateLimiter.middleware.js
 import rateLimit from 'express-rate-limit'; // npm install express-rate-limit
 
+// this file contains all rate limiters used in the application
+// these limiters help to prevent brute-force attacks and abuse of the API
+// each limiter is configured with specific rules based on the endpoint's sensitivity
+// these rules can be adjusted as needed to balance security and usability
+
 // Login rate limiter: 5 attempts per 15 minutes
 export const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -34,7 +39,7 @@ export const registerLimiter = rateLimit({
     skipSuccessfulRequests: true
 });
 
-// General API rate limiter - 200 requests per 15 minutes
+// General API rate limiter: 200 requests per 15 minutes
 export const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 200, // 200 requests
