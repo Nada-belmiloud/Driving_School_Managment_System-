@@ -1,4 +1,26 @@
 // backend/src/config/logger.config.js
+
+/**
+ * logging configuration
+ *
+ * this file sets up the logging system for the application.
+ * logging means recording what happens in the application (events, errors, etc.)
+ * so we can debug issues and monitor the system.
+ *
+ * what this file does:
+ * 1. creates a logger using the Winston library
+ * 2. defines how log messages should be formatted (with timestamps, colors, etc.)
+ * 3. saves different types of logs to separate files:
+ *    - error.log: Only error messages
+ *    - info.log: General information messages
+ *    - combined.log: All log messages
+ *    - exceptions.log: Unexpected crashes
+ *    - rejections.log: Promise rejection errors
+ * 4. shows colored logs in the console during development
+ *
+ * logs are stored in the 'logs' folder with a maximum size of 5MB per file.
+ */
+
 import winston from 'winston';
 import path from 'path';
 import { fileURLToPath } from 'url';
