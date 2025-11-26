@@ -1,4 +1,20 @@
 // backend/src/config/db.js
+
+/**
+ * database connection configuration
+ *
+ * this file handles the connection between the application and MongoDB database.
+ * MongoDB atlas or compass is where all the driving school data is stored (students, instructors, lessons ...).
+ *
+ * what this file does:
+ * 1. connects to MongoDB using the connection string from environment variables
+ * 2. print and logs success or error messages when connecting
+ * 3. handles connection events (errors, disconnections)
+ * 4. gracefully closes the database connection when the app shuts down
+ *
+ * the connectDB function should be called once when the server starts.
+ */
+
 import mongoose from "mongoose";
 import config from "./env.config.js";
 
