@@ -1,4 +1,23 @@
 // backend/src/config/swagger.config.js
+
+/**
+ * swagger API documentation configuration
+ *
+ * this file sets up automatic API documentation for the driving school management system.
+ * swagger creates a web interface where we (developers) can see all available API endpoints,
+ * test them directly in the browser, and understand how to use the API.
+ *
+ * what this file does:
+ * 1. defines the API information (title, version, description)
+ * 2. specifies the server URLs where the API can be accessed
+ * 3. sets up security (JWT authentication)
+ * 4. defines data schemas (Student, Instructor, Vehicle, Lesson, Payment)
+ * 5. organizes endpoints into categories (tags)
+ * 6. customizes the appearance of the documentation page
+ *
+ * the documentation will be available at: http://localhost:5000/api-docs
+ */
+
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import config from './env.config.js';
