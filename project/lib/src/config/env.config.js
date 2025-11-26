@@ -1,4 +1,22 @@
 // backend/src/config/env.config.js
+
+/**
+ * env variables configuration
+ *
+ * this file manages all configuration settings for the application.
+ * instead of hardcoding sensitive information (like passwords) in the code,
+ * we store them in a .env file and load them here.
+ *
+ * what this file does:
+ * 1. loads environment variables from the .env file
+ * 2. validates that all required variables are present
+ * 3. checks that values are in the correct format (eg: PORT is a valid number)
+ * 4. exports a clean configuration object that other files can use
+ *
+ * required variables: NODE_ENV, PORT, MONGO_URI, JWT_SECRET
+ * the app will not start if any required variables are missing.
+ */
+
 import dotenv from 'dotenv';
 
 dotenv.config();
