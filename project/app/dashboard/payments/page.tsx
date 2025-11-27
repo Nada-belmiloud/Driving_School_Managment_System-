@@ -1,5 +1,6 @@
-import { PaymentsView } from '@/components/payments/PaymentsView';
 
-export default function PaymentsPage() {
-  return <PaymentsView />;
+import PaymentsPage from '@/components/payment/PaymentView';
+
+export default function InstructorsPage() {
+  return <PaymentsPage/>;
 }

@@ -1,5 +1,5 @@
-import { InstructorsList } from '@/components/instructors/InstructorsList';
+import { InstructorsList } from '@/components/instructors/InstructorList';
 
 export default function InstructorsPage() {
-  return <InstructorsList />;
+  return <InstructorsList/>;
 }

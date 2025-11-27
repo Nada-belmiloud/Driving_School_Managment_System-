@@ -1,5 +1,9 @@
-import { ScheduleView } from '@/components/schedule/ScheduleView';
+import { ScheduleComponent } from "@/components/schedule/Scheddule"; 
+import { mockCandidates } from "@/lib/mockData";
 
 export default function SchedulePage() {
-  return <ScheduleView />;
+  // Example: show the first candidate
+  const candidate = mockCandidates[0];
+
+  return <ScheduleComponent candidate={candidate} />;
 }

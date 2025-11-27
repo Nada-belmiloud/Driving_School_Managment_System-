@@ -29,7 +29,7 @@ export function HistoryView() {
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-gray-900">Graduated Candidates</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Graduated Candidates</h1>
         <p className="text-gray-600">History of all candidates who completed their training</p>
       </div>
 

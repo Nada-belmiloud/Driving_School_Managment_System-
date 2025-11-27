@@ -1,0 +1,1100 @@
+"use client";
+import React, { useState, useMemo } from "react";
+import {
+  Calendar,
+  Clock,
+  User,
+  Plus,
+  CheckCircle,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  X,
+  AlertTriangle,
+} from "lucide-react";
+
+// NOTE: Assuming '@/types' and '@/lib/mockData' are correctly configured in your project.
+import type { Candidate, Session, Instructor, Phase } from "@/types";
+import {
+  mockCandidates,
+  mockSessions,
+  mockInstructors,
+} from "@/lib/mockData";
+
+// --- Constants ---
+const phaseLabels: Record<Phase, string> = {
+  highway_code: "Highway Code",
+  parking: "Parking",
+  driving: "Driving",
+};
+
+// --- Main Component ---
+export function ScheduleComponent() {
+  // Initialize sessions from imported mockData
+  const [sessions, setSessions] = useState<Session[]>(mockSessions);
+  // Exams local state (newly scheduled exams stored here)
+  const [exams, setExams] = useState<
+    { id: string; candidateId: string; phase: string; date: string; time: string; status?: string }[]
+  >([]);
+  // UI State
+  const [activeTab, setActiveTab] = useState<"training" | "exams">("training");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [currentMonth, setCurrentMonth] = useState(new Date()); // Current month
+  
+  // Modal + date selection state
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // auto-select today
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const [showExamModal, setShowExamModal] = useState(false);
+
+  // Helper functions using imported data
+  const getCandidateInfo = (candidateId: string): Candidate | undefined =>
+    mockCandidates.find((c) => c.id === candidateId);
+
+  const getInstructorName = (instructorId: string): string => {
+    const instructor = mockInstructors.find((i) => i.id === instructorId);
+    return instructor?.name || "Unknown";
+  };
+  
+  const getCandidateCompletedSessions = (candidateId: string): Session[] => {
+    return mockCandidates.find(c => c.id === candidateId)?.sessionHistory?.filter(s => s.status === 'completed') || [];
+  };
+
+  const getCandidateExamHistory = (candidateId: string) => {
+    const candidate = mockCandidates.find(c => c.id === candidateId);
+    if (!candidate) return [];
+    
+    return candidate.phases.map(phase => {
+        // Determine 15-day status (simplified logic for UI display)
+        const lastExamDate = phase.examDate ? new Date(phase.examDate) : null;
+        let waitingStatus = 'N/A';
+        if (lastExamDate) {
+            const fifteenDaysLater = new Date(lastExamDate);
+            fifteenDaysLater.setDate(lastExamDate.getDate() + 15);
+            if (new Date() < fifteenDaysLater) {
+                const remainingDays = Math.ceil((fifteenDaysLater.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                waitingStatus = `Waiting (${remainingDays} days)`;
+            } else {
+                waitingStatus = 'Ready';
+            }
+        }
+
+        return {
+            phase: phaseLabels[phase.phase],
+            lastExamDate: phase.examDate || 'N/A',
+            results: phase.examPassed ? 'Passed' : (phase.examDate ? 'Failed' : 'N/A'),
+            attempts: phase.examAttempts,
+            waitingStatus: waitingStatus,
+            currentPhaseStatus: phase.status,
+        };
+    });
+  };
+
+  // Filter Sessions
+  const filteredSessions = useMemo(() => {
+    if (filterStatus === "all") return sessions;
+    return sessions.filter((s) => s.status === filterStatus);
+  }, [sessions, filterStatus]);
+
+  // Calendar utilities
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const days: { date: Date; isCurrentMonth: boolean }[] = [];
+    // days from previous month to align first day of week
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      const prevDate = new Date(year, month, -startingDayOfWeek + i + 1);
+      days.push({ date: prevDate, isCurrentMonth: false });
+    }
+    // days of current month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({ date: new Date(year, month, i), isCurrentMonth: true });
+    }
+    // Optionally you could append trailing days to fill the last week — kept as-is
+    return days;
+  };
+
+  const days = getDaysInMonth(currentMonth);
+  const today = new Date(); // auto "today"
+
+  // Stats
+  const stats = useMemo(() => {
+    return {
+      total: sessions.length,
+      scheduled: sessions.filter((s) => s.status === "scheduled").length,
+      completed: sessions.filter((s) => s.status === "completed").length,
+      cancelled: sessions.filter((s) => s.status === "cancelled").length,
+    };
+  }, [sessions]);
+
+  // Exam candidates from imported mockCandidates (unchanged)
+  const examCandidates = useMemo(() => {
+    return mockCandidates
+      .map((candidate) => {
+        const currentPhase = candidate.phases?.find(
+          (p) => p.status === "in_progress" || (p.examDate && !p.examPassed)
+        );
+        if (!currentPhase || !currentPhase.examDate) return null;
+        
+        return {
+          id: candidate.id,
+          name: candidate.name,
+          currentPhase: currentPhase.phase,
+          examDate: currentPhase.examDate,
+          sessionsCompleted: currentPhase.sessionsCompleted,
+          sessionsPlan: currentPhase.sessionsPlan,
+          examAttempts: currentPhase.examAttempts,
+        };
+      })
+      .filter(
+        (candidate): candidate is NonNullable<typeof candidate> =>
+          candidate !== null
+      );
+  }, []);
+
+  // --- Handlers ---
+  const handleComplete = (sessionId: string) => {
+    setSessions(
+      sessions.map((s) =>
+        s.id === sessionId ? { ...s, status: "completed" as const } : s
+      )
+    );
+  };
+
+  const handleCancel = (sessionId: string) => {
+    setSessions(
+      sessions.map((s) =>
+        s.id === sessionId ? { ...s, status: "cancelled" as const } : s
+      )
+    );
+  };
+
+  const changeMonth = (delta: number) => {
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta)
+    );
+  };
+
+  // Add session handler (from modal)
+  const handleAddSession = (payload: {
+    candidateId: string;
+    phase: string;
+    instructorId?: string;
+    date: string;
+    time: string;
+  }) => {
+    const newSession: Session = {
+      id: `s-${Date.now()}`,
+      candidateId: payload.candidateId,
+      // Find the instructor ID if using the select box, fall back to mockInstructor[0]
+      instructorId: payload.instructorId || mockInstructors[0]?.id || "",
+      phase: (payload.phase as Phase) || "parking",
+      date: payload.date,
+      time: payload.time,
+      status: "scheduled",
+    } as unknown as Session;
+    setSessions((prev) => [newSession, ...prev]);
+  };
+
+  // Add exam handler (from modal)
+  const handleAddExam = (payload: { candidateId: string; phase: string; date: string; time: string }) => {
+    const newExam = {
+      id: `e-${Date.now()}`,
+      candidateId: payload.candidateId,
+      phase: payload.phase,
+      date: payload.date,
+      time: payload.time,
+      status: "scheduled",
+    };
+    setExams((prev) => [newExam, ...prev]);
+  };
+  
+  // --- Main Render ---
+  return (
+    <div className="min-h-screen bg-gray-50 flex justify-center">
+      {/* Centering the main content area */}
+      <div className="w-full max-w-7xl p-8"> 
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-gray-900">Schedule Management </h1>
+          <p className="text-sm text-gray-500">
+            Manage training sessions and exams
+          </p>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab("training")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "training"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            Training Sessions
+          </button>
+          <button
+            onClick={() => setActiveTab("exams")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "exams"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            Exams
+          </button>
+        </div>
+
+        {/* Main Layout */}
+        <div className="flex gap-6">
+          {/* Left Panel */}
+          <div className="flex-1">
+            {activeTab === "training" ? (
+              <TrainingSessionsView
+                filteredSessions={filteredSessions}
+                filterStatus={filterStatus}
+                setFilterStatus={setFilterStatus}
+                getCandidateInfo={getCandidateInfo}
+                getInstructorName={getInstructorName}
+                handleComplete={handleComplete}
+                handleCancel={handleCancel}
+                onOpenSessionModal={() => {
+                  setShowSessionModal(true);
+                }}
+              />
+            ) : (
+              <ExamsView
+                examCandidates={examCandidates}
+                onOpenExamModal={() => setShowExamModal(true)}
+                exams={exams}
+                getCandidateInfo={getCandidateInfo}
+              />
+            )}
+          </div>
+
+          {/* Right Sidebar */}
+          {activeTab === "training" && (
+            <RightSidebar
+              currentMonth={currentMonth}
+              changeMonth={changeMonth}
+              stats={stats}
+              days={days}
+              today={today}
+              selectedDate={selectedDate}
+              onSelectDate={(d: Date) => setSelectedDate(d)}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* ---------------------------
+          SESSION MODAL
+      --------------------------- */}
+      {showSessionModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white w-[560px] rounded-xl shadow-2xl relative max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-semibold">Schedule New Session</h2>
+              <button
+                className="text-gray-600 hover:text-gray-900"
+                onClick={() => setShowSessionModal(false)}
+              >
+                <X />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <SessionForm
+                defaultDate={selectedDate}
+                instructors={mockInstructors}
+                candidates={mockCandidates}
+                getCandidateCompletedSessions={getCandidateCompletedSessions}
+                onCancel={() => setShowSessionModal(false)}
+                onSubmit={(payload) => {
+                  handleAddSession(payload);
+                  setShowSessionModal(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------------------
+          EXAM MODAL
+      --------------------------- */}
+      {showExamModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white w-[700px] rounded-xl shadow-2xl relative max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-semibold">Schedule Exam</h2>
+              <button
+                className="text-gray-600 hover:text-gray-900"
+                onClick={() => setShowExamModal(false)}
+              >
+                <X />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <ExamForm
+                defaultDate={selectedDate}
+                candidates={mockCandidates}
+                getCandidateExamHistory={getCandidateExamHistory}
+                onCancel={() => setShowExamModal(false)}
+                onSubmit={(payload) => {
+                  handleAddExam(payload);
+                  setShowExamModal(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------
+// SessionForm component (Updated)
+// ---------------------------
+function SessionForm({
+  defaultDate,
+  instructors,
+  candidates,
+  getCandidateCompletedSessions,
+  onCancel,
+  onSubmit,
+}: {
+  defaultDate: Date;
+  instructors: Instructor[];
+  candidates: Candidate[];
+  getCandidateCompletedSessions: (id: string) => Session[];
+  onCancel: () => void;
+  onSubmit: (payload: {
+    candidateId: string;
+    phase: string;
+    instructorId?: string;
+    date: string;
+    time: string;
+  }) => void;
+}) {
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?.id || "");
+  const [phase, setPhase] = useState<string>("parking");
+  const [instructorId, setInstructorId] = useState<string>(
+    instructors?.[0]?.id ?? ""
+  );
+  const [date, setDate] = useState<string>(() =>
+    defaultDate.toISOString().slice(0, 10)
+  );
+  const [time, setTime] = useState<string>("09:00");
+  
+  const completedSessions = selectedCandidateId 
+    ? getCandidateCompletedSessions(selectedCandidateId) 
+    : [];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCandidateId) return;
+    
+    onSubmit({
+      candidateId: selectedCandidateId,
+      phase,
+      instructorId,
+      date,
+      time,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4">
+        <div className="p-3 border rounded-lg bg-gray-50">
+          <label className="text-sm font-medium block mb-1">Select Candidate <span className="text-red-500">*</span></label>
+          <select
+            className="w-full border rounded p-2"
+            value={selectedCandidateId}
+            onChange={(e) => setSelectedCandidateId(e.target.value)}
+            required
+          >
+            {candidates.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium border-t pt-4">Completed Sessions History</h3>
+          <div className="space-y-3 max-h-40 overflow-y-auto mb-4 border p-3 rounded-lg">
+            {completedSessions.length === 0 ? (
+              <div className="text-sm text-gray-500 text-center py-2">No completed sessions recorded for this candidate.</div>
+            ) : (
+              completedSessions.map((s) => (
+                <div
+                  key={s.id}
+                  className="p-2 border rounded flex items-center justify-between bg-white"
+                >
+                  <div>
+                    <p className="font-medium text-sm">{phaseLabels[s.phase]}</p>
+                    <p className="text-xs text-gray-500">
+                      {s.date} — {s.time}
+                    </p>
+                  </div>
+                  <CheckCircle className="text-green-600 w-5 h-5" />
+                </div>
+              ))
+            )}
+          </div>
+
+          <h3 className="text-lg font-medium border-t pt-4">Schedule Details</h3>
+          
+          <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium block mb-1">Phase</label>
+                <select
+                    className="w-full border rounded p-2"
+                    value={phase}
+                    onChange={(e) => setPhase(e.target.value)}
+                    required
+                >
+                    <option value="parking">Parking (Phase 2)</option>
+                    <option value="driving">Driving (Phase 3)</option>
+                    <option value="highway_code">Highway Code (Phase 1)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium block mb-1">Instructor</label>
+                <select
+                    className="w-full border rounded p-2"
+                    value={instructorId}
+                    onChange={(e) => setInstructorId(e.target.value)}
+                    required
+                >
+                    {instructors.map((ins) => (
+                        <option key={ins.id} value={ins.id}>
+                            {ins.name}
+                        </option>
+                    ))}
+                </select>
+              </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium block mb-1">Date</label>
+                <input
+                    type="date"
+                    className="w-full border rounded p-2"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Time</label>
+                <input
+                    type="time"
+                    className="w-full border rounded p-2"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    required
+                />
+              </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <button
+              type="button"
+              className="px-22 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-15 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Schedule Session
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+// ---------------------------
+// ExamForm component (Updated)
+// ---------------------------
+function ExamForm({
+  defaultDate,
+  candidates,
+  getCandidateExamHistory,
+  onCancel,
+  onSubmit,
+}: {
+  defaultDate: Date;
+  candidates: Candidate[];
+  getCandidateExamHistory: (id: string) => { 
+    phase: string; 
+    lastExamDate: string; 
+    results: string; 
+    attempts: number; 
+    waitingStatus: string; 
+    currentPhaseStatus: string; 
+  }[];
+  onCancel: () => void;
+  onSubmit: (payload: { candidateId: string; phase: string; date: string; time: string }) => void;
+}) {
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?.id || "");
+  const [date, setDate] = useState<string>(() =>
+    defaultDate.toISOString().slice(0, 10)
+  );
+  const [time, setTime] = useState<string>("09:00");
+
+  const examHistory = selectedCandidateId 
+    ? getCandidateExamHistory(selectedCandidateId) 
+    : [];
+  
+  // Auto-detect the current phase as the one marked 'in_progress' or the next phase if current is passed
+  const candidate = candidates.find(c => c.id === selectedCandidateId);
+  const currentPhase = candidate?.phases?.find(p => p.status === 'in_progress');
+  const nextPhase = candidate?.phases?.find(p => p.status === 'not_started');
+  
+  // Determine exam phase: if current phase failed or needs retake, use current phase; otherwise use next phase
+  const examPhase = currentPhase && (!currentPhase.examPassed || currentPhase.examDate) 
+    ? currentPhase.phase 
+    : nextPhase?.phase || currentPhase?.phase || 'highway_code';
+
+  const currentPhaseLabel = phaseLabels[examPhase] || 'N/A';
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCandidateId) return;
+    
+    onSubmit({ candidateId: selectedCandidateId, phase: examPhase, date, time });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4">
+        <div className="p-3 border rounded-lg bg-gray-50">
+          <label className="text-sm font-medium block mb-1">Select Candidate <span className="text-red-500">*</span></label>
+          <select
+            className="w-full border rounded p-2"
+            value={selectedCandidateId}
+            onChange={(e) => setSelectedCandidateId(e.target.value)}
+            required
+          >
+            {candidates.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium border-t pt-4">Exam History and Status</h3>
+          
+
+
+          <div className="max-h-56 overflow-y-auto border rounded-lg">
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Phase</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Last Exam Date</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Result</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Attempts</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">15-Day Status</th>
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {examHistory.length > 0 ? (
+                        examHistory.map((history, index) => (
+                            <tr key={index}>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{history.phase}</td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{history.lastExamDate}</td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                        history.results === 'Passed' ? 'bg-green-100 text-green-800' :
+                                        history.results === 'Failed' ? 'bg-red-100 text-red-800' :
+                                        'bg-gray-100 text-gray-600'
+                                    }`}>
+                                        {history.results}
+                                    </span>
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{history.attempts}</td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{history.waitingStatus}</td>
+                            </tr>
+                        ))
+                    ) : (
+                        <tr><td colSpan={5} className="text-center py-4 text-sm text-gray-500">No exam history available.</td></tr>
+                    )}
+                </tbody>
+            </table>
+          </div>
+
+          <h3 className="mt-2 text-lg font-medium border-t pt-4">Schedule Exam Details</h3>
+          
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-800">Exam Phase</p>
+                <p className="text-lg font-semibold text-blue-900">{currentPhaseLabel}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-blue-700">Auto-detected based on candidate progress</p>
+                <p className="text-xs text-blue-600">
+                  {currentPhase && !currentPhase.examPassed ? 'Retaking failed phase' : 
+                   nextPhase ? 'Moving to next phase' : 'Final phase'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium block mb-1">Exam Date</label>
+                <input
+                    type="date"
+                    className="w-full border rounded p-2"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Exam Time</label>
+                <input
+                    type="time"
+                    className="w-full border rounded p-2"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    required
+                />
+              </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+              <button
+                  type="button"
+                  className="px-32 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                  onClick={onCancel}
+              >
+                  Cancel
+              </button>
+              <button
+                  type="submit"
+                  className="px-25 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                  Schedule Exam
+              </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  );
+}
+
+// ---------------------------
+// Sub-components (Updated)
+// ---------------------------
+
+interface TrainingSessionsViewProps {
+  filteredSessions: Session[];
+  filterStatus: string;
+  setFilterStatus: (status: string) => void;
+  getCandidateInfo: (id: string) => Candidate | undefined;
+  getInstructorName: (id: string) => string;
+  handleComplete: (id: string) => void;
+  handleCancel: (id: string) => void;
+  onOpenSessionModal: () => void;
+}
+
+function TrainingSessionsView({
+  filteredSessions,
+  filterStatus,
+  setFilterStatus,
+  getCandidateInfo,
+  getInstructorName,
+  handleComplete,
+  handleCancel,
+  onOpenSessionModal,
+}: TrainingSessionsViewProps) {
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <h2 className="font-semibold">Training Sessions</h2>
+        <button
+          onClick={onOpenSessionModal}
+          className="px-6 py-3 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
+        >
+          <Plus className="w-4 h-4" />
+          Schedule Session
+        </button>
+      </div>
+      {/* Filter Buttons */}
+      <div className="p-4 flex gap-2 border-b border-gray-200">
+        {[
+          { key: "all", label: "All" },
+          { key: "scheduled", label: "Scheduled" },
+          { key: "completed", label: "Completed" },
+          { key: "cancelled", label: "Cancelled" },
+        ].map((filter) => (
+          <button
+            key={filter.key}
+            onClick={() => setFilterStatus(filter.key)}
+            className={`px-4 py-1.5 text-sm rounded-full transition-colors ${
+              filterStatus === filter.key
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+      {/* Sessions List */}
+      <div className="divide-y divide-gray-200">
+        {filteredSessions.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">No sessions found</div>
+        ) : (
+          filteredSessions.map((session) => {
+            const candidate = getCandidateInfo(session.candidateId);
+            return (
+              <div key={session.id} className="p-4 hover:bg-gray-50">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-gray-900">
+                        {candidate?.name || "Unknown"}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 text-xs rounded-full ${
+                          session.status === "scheduled"
+                            ? "bg-blue-100 text-blue-700"
+                            : session.status === "completed"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {session.status}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">
+                      {phaseLabels[session.phase] || session.phase}
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {session.date}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {session.time}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <User className="w-4 h-4" />
+                        {getInstructorName(session.instructorId)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {session.status === "scheduled" && (
+                      <>
+                        <button
+                          onClick={() => handleComplete(session.id)}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                          title="Mark as completed"
+                        >
+                          <CheckCircle className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleCancel(session.id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                          title="Cancel session"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface ExamsViewProps {
+  examCandidates: {
+    id: string;
+    name: string;
+    currentPhase: Phase;
+    examDate: string;
+    sessionsCompleted: number;
+    sessionsPlan: number;
+    examAttempts: number;
+  }[];
+  onOpenExamModal: () => void;
+  exams: { id: string; candidateId: string; phase: string; date: string; time: string; status?: string }[];
+  getCandidateInfo: (id: string) => Candidate | undefined;
+}
+
+function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo }: ExamsViewProps) {
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div>
+          <h2 className="font-semibold">Scheduled Exams</h2>
+          <p className="text-sm text-gray-500">
+            View and manage exams that have been scheduled
+          </p>
+        </div>
+        <button
+          onClick={onOpenExamModal}
+          className="px-6 py-3 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
+        >
+          <Plus className="w-4 h-4" />
+          Schedule Exam
+        </button>
+      </div>
+
+      <div className="p-4 bg-blue-50 border-b border-blue-100">
+        <div className="flex items-start gap-2 text-sm text-blue-800">
+          <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <p>
+            Exams are scheduled flexibly based on manager-candidate agreement.
+            The system enforces a 15-day waiting period after exam failures and
+            between phases.
+          </p>
+        </div>
+      </div>
+
+      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {examCandidates.length === 0 && exams.length === 0 ? (
+          <div className="col-span-2 p-8 text-center text-gray-500">
+            No scheduled exams
+          </div>
+        ) : (
+          <>
+            {examCandidates.map((candidate) => (
+              <div
+                key={candidate.id}
+                className="border border-gray-200 rounded-lg p-4"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      {candidate.name}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {phaseLabels[candidate.currentPhase]}
+                    </div>
+                  </div>
+                  <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">
+                    Exam Scheduled
+                  </span>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Exam Date:</span>
+                    <span className="font-medium">{candidate.examDate}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Sessions:</span>
+                    <span className="font-medium">
+                      {candidate.sessionsCompleted}/{candidate.sessionsPlan}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Attempts:</span>
+                    <span className="font-medium">{candidate.examAttempts}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {/* Also show local scheduled exams (from UI) */}
+            {exams.map((e) => {
+              const candidate = getCandidateInfo(e.candidateId);
+              return (
+                <div key={e.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {candidate?.name || "Unknown Candidate"} - {phaseLabels[e.phase as Phase]}
+                      </div>
+                      <div className="text-sm text-gray-600">{e.date} {e.time}</div>
+                    </div>
+                    <span
+                      className={`px-2 py-1 ${
+                        e.status === "passed"
+                          ? "bg-green-100 text-green-700"
+                          : e.status === "failed"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-orange-100 text-orange-700"
+                      } text-xs rounded-full`}
+                    >
+                      {e.status ?? "Scheduled"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Right Sidebar Component (calendar + stats)
+interface RightSidebarProps {
+  currentMonth: Date;
+  changeMonth: (delta: number) => void;
+  stats: {
+    total: number;
+    scheduled: number;
+    completed: number;
+    cancelled: number;
+  };
+  days: { date: Date; isCurrentMonth: boolean }[];
+  today: Date;
+  selectedDate: Date;
+  onSelectDate: (d: Date) => void;
+}
+
+function RightSidebar({
+  currentMonth,
+  changeMonth,
+  stats,
+  days,
+  today,
+  selectedDate,
+  onSelectDate,
+}: RightSidebarProps) {
+  return (
+    <div className="w-80 space-y-6">
+      {/* Calendar */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-gray-600" />
+            <h3 className="font-semibold">Monthly Calendar</h3>
+          </div>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Use this calendar to suggest dates to candidates
+        </p>
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            onClick={() => changeMonth(-1)}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <span className="font-medium">
+            {currentMonth.toLocaleString("default", {
+              month: "long",
+              year: "numeric",
+            })}
+          </span>
+          <button
+            onClick={() => changeMonth(1)}
+            className="p-1 hover:bg-gray-100 rounded"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+            <div
+              key={day}
+              className="text-center text-xs font-medium text-gray-500 py-1"
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {days.map((day, idx) => {
+            const isToday =
+              day.isCurrentMonth &&
+              day.date.getDate() === today.getDate() &&
+              day.date.getMonth() === today.getMonth() &&
+              day.date.getFullYear() === today.getFullYear();
+
+            const isSelected =
+              day.date.getDate() === selectedDate.getDate() &&
+              day.date.getMonth() === selectedDate.getMonth() &&
+              day.date.getFullYear() === selectedDate.getFullYear();
+
+            return (
+              <button
+                key={idx}
+                onClick={() => day.isCurrentMonth && onSelectDate(day.date)}
+                className={`aspect-square flex items-center justify-center text-sm rounded ${
+                  !day.isCurrentMonth
+                    ? "text-gray-300 cursor-default"
+                    : isSelected
+                    ? "bg-black text-white font-semibold"
+                    : isToday
+                    ? "ring-2 ring-offset-1 ring-black font-semibold"
+                    : "text-gray-900 hover:bg-gray-100"
+                }`}
+              >
+                {day.date.getDate()}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {/* Quick Stats */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <h3 className="font-semibold mb-4">Quick Stats</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Total Sessions</span>
+            <span className="font-medium">{stats.total}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Scheduled</span>
+            <span className="font-medium text-blue-600">
+              {stats.scheduled}
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Completed</span>
+            <span className="font-medium text-green-600">
+              {stats.completed}
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Cancelled</span>
+            <span className="font-medium text-red-600">
+              {stats.cancelled}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default ScheduleComponent;
