@@ -1,22 +1,16 @@
 // project/models/Admin.ts
-import mongoose, { Schema, Document, model, models } from "mongoose";
+import mongoose, { Schema, model, models } from "mongoose";
 
-export interface IAdmin extends Document {
+export interface IAdmin {
   username: string;
-  password: string; // hashed
+  password: string;
   email: string;
 }
 
-const emailRegex = /^\S+@\S+\.\S+$/;
+const AdminSchema = new Schema<IAdmin>({
+  username: { type: String, required: true, unique: true, trim: true },
+  password: { type: String, required: true }, // hashed
+  email: { type: String, required: true, unique: true, trim: true },
+}, { timestamps: true });
 
-const AdminSchema = new Schema<IAdmin>(
-  {
-    username: { type: String, required: true, unique: true, trim: true },
-    password: { type: String, required: true },
-    email: { type: String, required: true, trim: true, lowercase: true, unique: true, match: [emailRegex, "Invalid email"] },
-  },
-  { timestamps: true }
-);
-
-export default (models.Admin as mongoose.Model<IAdmin>) ||
-  model<IAdmin>("Admin", AdminSchema);
+export default (models.Admin as mongoose.Model<IAdmin>) || model<IAdmin>("Admin", AdminSchema);
