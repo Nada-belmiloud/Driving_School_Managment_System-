@@ -1,5 +1,5 @@
 // project/models/Vehicle.ts
-import mongoose, { Schema, Document, model, models } from "mongoose";
+import mongoose, { Schema, model, models } from "mongoose";
 
 export interface IMaintenanceRecord {
   date: Date;
@@ -7,11 +7,12 @@ export interface IMaintenanceRecord {
   status: string;
 }
 
-export interface IVehicle extends Document {
-  category: string;
-  vehicleModel: string;   // renamed to avoid collision with mongoose.Document.model
+export interface IVehicle {
+  brand: string;
+  model: string; // frontend expects separate brand + model
   licensePlate: string;
   status: "available" | "active" | "maintenance";
+  instructorId?: mongoose.Types.ObjectId | null;
   maintenanceHistory: IMaintenanceRecord[];
 }
 
@@ -21,16 +22,13 @@ const MaintenanceSchema = new Schema<IMaintenanceRecord>({
   status: { type: String, required: true },
 });
 
-const VehicleSchema = new Schema<IVehicle>(
-  {
-    category: { type: String, required: true },
-    vehicleModel: { type: String, required: true }, // renamed property
-    licensePlate: { type: String, required: true, unique: true },
-    status: { type: String, default: "available" },
-    maintenanceHistory: { type: [MaintenanceSchema], default: [] },
-  },
-  { timestamps: true }
-);
+const VehicleSchema = new Schema<IVehicle>({
+  brand: { type: String, required: true },
+  model: { type: String, required: true },
+  licensePlate: { type: String, required: true, unique: true },
+  status: { type: String, default: "available" },
+  instructorId: { type: Schema.Types.ObjectId, ref: "Instructor", default: null },
+  maintenanceHistory: { type: [MaintenanceSchema], default: [] },
+}, { timestamps: true });
 
-export default (models.Vehicle as mongoose.Model<IVehicle>) ||
-  model<IVehicle>("Vehicle", VehicleSchema);
+export default (models.Vehicle as mongoose.Model<IVehicle>) || model<IVehicle>("Vehicle", VehicleSchema);
