@@ -1,22 +1,22 @@
-import mongoose, { Schema, Document, models } from "mongoose";
+// project/models/Exam.ts
+import mongoose, { Schema, Document, model, models } from "mongoose";
 
 export interface IExam extends Document {
-  type: string; // code / conduite
+  courseId: mongoose.Types.ObjectId;
+  examType: string;
   date: Date;
-  instructor: mongoose.Types.ObjectId;
+  instructorId?: mongoose.Types.ObjectId | null;
 }
 
 const ExamSchema = new Schema<IExam>(
   {
-    type: { type: String, required: true },
+    courseId: { type: Schema.Types.ObjectId, ref: "Course", required: true },
+    examType: { type: String, required: true },
     date: { type: Date, required: true },
-    instructor: {
-      type: Schema.Types.ObjectId,
-      ref: "Instructor",
-      required: true,
-    },
+    instructorId: { type: Schema.Types.ObjectId, ref: "Instructor", default: null },
   },
   { timestamps: true }
 );
 
-export default models.Exam || mongoose.model<IExam>("Exam", ExamSchema);
+export default (models.Exam as mongoose.Model<IExam>) ||
+  model<IExam>("Exam", ExamSchema);

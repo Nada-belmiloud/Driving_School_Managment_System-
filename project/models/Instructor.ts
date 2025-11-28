@@ -1,25 +1,56 @@
-import mongoose, { Schema, Document, models } from "mongoose";
+// project/models/Instructor.ts
+import mongoose, { Schema, Document, model, models } from "mongoose";
+
+export interface IAvailability {
+  date: Date;
+  startTime?: string | null;
+  endTime?: string | null;
+}
 
 export interface IInstructor extends Document {
-  firstName: string;
-  lastName: string;
+  name: string;
   phone: string;
-  email?: string;
+  email: string;
+  specialization: string;
   hireDate: Date;
-  specialization?: string;
+  vehicleId?: mongoose.Types.ObjectId | null;
+  availability: IAvailability[];
 }
+
+const phoneRegex = /^\d{10}$/;
+const emailRegex = /^\S+@\S+\.\S+$/;
+
+const AvailabilitySchema = new Schema<IAvailability>({
+  date: { type: Date, required: true },
+  startTime: { type: String, default: null },
+  endTime: { type: String, default: null },
+});
 
 const InstructorSchema = new Schema<IInstructor>(
   {
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    phone: { type: String, required: true },
-    email: { type: String },
+    name: { type: String, required: true, trim: true },
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true,
+      match: [phoneRegex, "Phone must be 10 digits"],
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      unique: true,
+      match: [emailRegex, "Invalid email format"],
+    },
+    specialization: { type: String, required: true },
     hireDate: { type: Date, default: Date.now },
-    specialization: { type: String },
+    vehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle", default: null },
+    availability: { type: [AvailabilitySchema], default: [] },
   },
   { timestamps: true }
 );
 
-export default models.Instructor ||
-  mongoose.model<IInstructor>("Instructor", InstructorSchema);
+export default (models.Instructor as mongoose.Model<IInstructor>) ||
+  model<IInstructor>("Instructor", InstructorSchema);

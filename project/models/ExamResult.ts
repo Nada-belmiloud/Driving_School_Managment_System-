@@ -1,19 +1,22 @@
-import mongoose, { Schema, Document, models } from "mongoose";
+// project/models/ExamResult.ts
+import mongoose, { Schema, Document, model, models } from "mongoose";
 
 export interface IExamResult extends Document {
-  candidate: mongoose.Types.ObjectId;
-  exam: mongoose.Types.ObjectId;
-  passed: boolean;
+  examId: mongoose.Types.ObjectId;
+  candidateId: mongoose.Types.ObjectId;
+  score: number;
+  status: "pass" | "fail";
 }
 
 const ExamResultSchema = new Schema<IExamResult>(
   {
-    candidate: { type: Schema.Types.ObjectId, ref: "Candidate", required: true },
-    exam: { type: Schema.Types.ObjectId, ref: "Exam", required: true },
-    passed: { type: Boolean, required: true },
+    examId: { type: Schema.Types.ObjectId, ref: "Exam", required: true },
+    candidateId: { type: Schema.Types.ObjectId, ref: "Candidate", required: true },
+    score: { type: Number, required: true },
+    status: { type: String, required: true },
   },
   { timestamps: true }
 );
 
-export default models.ExamResult ||
-  mongoose.model<IExamResult>("ExamResult", ExamResultSchema);
+export default (models.ExamResult as mongoose.Model<IExamResult>) ||
+  model<IExamResult>("ExamResult", ExamResultSchema);

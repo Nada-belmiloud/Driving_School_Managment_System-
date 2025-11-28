@@ -1,21 +1,24 @@
-import mongoose, { Schema, Document, models } from "mongoose";
+// project/models/Enrollment.ts
+import mongoose, { Schema, Document, model, models } from "mongoose";
 
 export interface IEnrollment extends Document {
-  candidate: mongoose.Types.ObjectId;
-  course: mongoose.Types.ObjectId;
+  candidateId: mongoose.Types.ObjectId;
+  planPayId: mongoose.Types.ObjectId;
+  licenseCategory: string;
   enrollmentDate: Date;
   status: string;
 }
 
 const EnrollmentSchema = new Schema<IEnrollment>(
   {
-    candidate: { type: Schema.Types.ObjectId, ref: "Candidate", required: true },
-    course: { type: Schema.Types.ObjectId, ref: "Course", required: true },
+    candidateId: { type: Schema.Types.ObjectId, ref: "Candidate", required: true },
+    planPayId: { type: Schema.Types.ObjectId, ref: "PaymentPlan", required: true },
+    licenseCategory: { type: String, required: true },
     enrollmentDate: { type: Date, default: Date.now },
     status: { type: String, default: "active" },
   },
   { timestamps: true }
 );
 
-export default models.Enrollment ||
-  mongoose.model<IEnrollment>("Enrollment", EnrollmentSchema);
+export default (models.Enrollment as mongoose.Model<IEnrollment>) ||
+  model<IEnrollment>("Enrollment", EnrollmentSchema);

@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev project",
-    "start": "node app.js",
+    "dev": "next dev",
+    "start": "next start",
     "seed": "ts-node scripts/seed.ts",
-    "build": "next build ./lib"
+    "build": "next build"
   },
   "dependencies": {
     "dotenv": "^16.3.1",
@@ -21,6 +21,7 @@
     "@types/node": "^20.19.25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/mongoose": "^5.11.97",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
     "tailwindcss": "^4",

@@ -1,19 +1,20 @@
-import mongoose, { Schema, Document, models } from "mongoose";
+// project/models/PaymentPlan.ts
+import mongoose, { Schema, Document, model, models } from "mongoose";
 
 export interface IPaymentPlan extends Document {
-  course: mongoose.Types.ObjectId;
+  name: string;
+  numberOfInstallments: number;
   totalAmount: number;
-  numberOfPayments: number;
 }
 
 const PaymentPlanSchema = new Schema<IPaymentPlan>(
   {
-    course: { type: Schema.Types.ObjectId, ref: "Course", required: true },
+    name: { type: String, required: true },
+    numberOfInstallments: { type: Number, required: true },
     totalAmount: { type: Number, required: true },
-    numberOfPayments: { type: Number, required: true },
   },
   { timestamps: true }
 );
 
-export default models.PaymentPlan ||
-  mongoose.model<IPaymentPlan>("PaymentPlan", PaymentPlanSchema);
+export default (models.PaymentPlan as mongoose.Model<IPaymentPlan>) ||
+  model<IPaymentPlan>("PaymentPlan", PaymentPlanSchema);
