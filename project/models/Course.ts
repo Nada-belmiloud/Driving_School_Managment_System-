@@ -1,22 +1,19 @@
 // project/models/Course.ts
-import mongoose, { Schema, Document, model, models } from "mongoose";
+import mongoose, { Schema, model, models } from "mongoose";
 
-export interface ICourse extends Document {
-  type: string; // 'theory' | 'practical'
+export interface ICourse {
+  type: string;
   title: string;
-  duration: number; // hours
+  duration: number;
   price: number;
 }
 
-const CourseSchema = new Schema<ICourse>(
-  {
-    type: { type: String, required: true },
-    title: { type: String, required: true },
-    duration: { type: Number, required: true },
-    price: { type: Number, required: true },
-  },
-  { timestamps: true }
-);
+const CourseSchema = new Schema<ICourse>({
+  type: { type: String, required: true },
+  title: { type: String, required: true },
+  duration: { type: Number, required: true },
+  price: { type: Number, required: true },
+}, { timestamps: true });
 
-export default (models.Course as mongoose.Model<ICourse>) ||
-  model<ICourse>("Course", CourseSchema);
+export default (models.Course as mongoose.Model<ICourse>) || model<ICourse>("Course", CourseSchema);
+
