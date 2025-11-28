@@ -1,56 +1,36 @@
 // project/models/Instructor.ts
-import mongoose, { Schema, Document, model, models } from "mongoose";
+import mongoose, { Schema, model, models } from "mongoose";
 
-export interface IAvailability {
-  date: Date;
-  startTime?: string | null;
-  endTime?: string | null;
-}
-
-export interface IInstructor extends Document {
+export interface IInstructor {
   name: string;
-  phone: string;
-  email: string;
-  specialization: string;
-  hireDate: Date;
+  phone?: string;
+  email?: string;
+  specialization?: string;
+  hireDate?: Date;
+  workingHours?: string;   // frontend expects this
+  maxStudents?: number;
+  currentStudents?: number;
+  availability?: { date: Date; startTime?: string; endTime?: string }[];
   vehicleId?: mongoose.Types.ObjectId | null;
-  availability: IAvailability[];
 }
 
-const phoneRegex = /^\d{10}$/;
-const emailRegex = /^\S+@\S+\.\S+$/;
-
-const AvailabilitySchema = new Schema<IAvailability>({
+const AvailabilitySchema = new Schema({
   date: { type: Date, required: true },
   startTime: { type: String, default: null },
   endTime: { type: String, default: null },
 });
 
-const InstructorSchema = new Schema<IInstructor>(
-  {
-    name: { type: String, required: true, trim: true },
-    phone: {
-      type: String,
-      required: true,
-      trim: true,
-      unique: true,
-      match: [phoneRegex, "Phone must be 10 digits"],
-    },
-    email: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-      unique: true,
-      match: [emailRegex, "Invalid email format"],
-    },
-    specialization: { type: String, required: true },
-    hireDate: { type: Date, default: Date.now },
-    vehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle", default: null },
-    availability: { type: [AvailabilitySchema], default: [] },
-  },
-  { timestamps: true }
-);
+const InstructorSchema = new Schema<IInstructor>({
+  name: { type: String, required: true },
+  phone: { type: String, default: null },
+  email: { type: String, default: null },
+  specialization: { type: String, default: null },
+  hireDate: { type: Date, default: Date.now },
+  workingHours: { type: String, default: "09:00-17:00" },
+  maxStudents: { type: Number, default: 10 },
+  currentStudents: { type: Number, default: 0 },
+  availability: { type: [AvailabilitySchema], default: [] },
+  vehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle", default: null },
+}, { timestamps: true });
 
-export default (models.Instructor as mongoose.Model<IInstructor>) ||
-  model<IInstructor>("Instructor", InstructorSchema);
+export default (models.Instructor as mongoose.Model<IInstructor>) || model<IInstructor>("Instructor", InstructorSchema);
