@@ -95,7 +95,7 @@ const PaymentModal: React.FC<{
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-           
+            <CreditCard className="text-blue-600" size={20} />
             Add Payment
           </DialogTitle>
           <DialogDescription>
@@ -125,7 +125,7 @@ const PaymentModal: React.FC<{
           {/* Payment Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-              
+              <Calendar className="text-gray-500" size={16} />
               Payment Date <span className="text-red-500">*</span>
             </label>
             <input
@@ -140,7 +140,7 @@ const PaymentModal: React.FC<{
           {/* Payment Method */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-
+              <Wallet className="text-gray-500" size={16} />
               Payment Method <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-4">
@@ -183,7 +183,7 @@ const PaymentModal: React.FC<{
           {/* Amount Field */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-              
+              <DollarSign className="text-gray-500" size={16} />
               Amount (DZD) <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -229,7 +229,7 @@ const PaymentModal: React.FC<{
                   <div className="flex justify-between text-sm mt-2 pt-2 border-t border-gray-200">
                     <span className="text-green-600 font-medium">Status:</span>
                     <span className="text-green-600 font-medium flex items-center gap-1">
-                     
+                      <CheckCircle2 size={16} />
                       Fully Paid
                     </span>
                   </div>
@@ -342,27 +342,27 @@ export default function PaymentsPage() {
       </div>
       <p className="text-gray-500 mb-8">Track payments and outstanding balances</p>
 
-      {/* Status Cards */}
+      {/* Status Cards - FIXED: Using calculated values instead of hardcoded ones */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <StatusCard
           title="Total Collected"
-          value="135,999 DZD"
-          subtext="alltime"
-          period="~ 10"
+          value={formatDZD(totalCollected)}
+          subtext={`${candidates.length} candidates`}
+          period="All Time"
           icon={<Wallet className="text-green-500" size={20} />}
         />
         <StatusCard
           title="Pending Payments"
-          value="34,001 DZD"
-          subtext="2 candidates"
-          period="Expected"
+          value={formatDZD(totalOutstanding)}
+          subtext={`${outstandingCandidates.length} candidates`}
+          period="Outstanding"
           icon={<AlertCircle className="text-orange-500" size={20} />}
         />
         <StatusCard
           title="Total Revenue"
-          value="170,000 DZD"
+          value={formatDZD(totalFeeValue)}
           subtext="Expected"
-          period="alltime"
+          period="All Time"
           icon={<DollarSign className="text-blue-500" size={20} />}
         />
       </div>
@@ -387,7 +387,7 @@ export default function PaymentsPage() {
                 <tr key={`${payment.id}-${index}`} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{payment.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center gap-2">
-                    
+                    <User className="text-gray-400" size={16} />
                     {payment.candidateName}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-green-600">
@@ -427,7 +427,7 @@ export default function PaymentsPage() {
                 return (
                   <tr key={candidate.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center gap-2">
-                      
+                      <User className="text-gray-400" size={16} />
                       {candidate.name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">{formatDZD(candidate.totalFee)}</td>
