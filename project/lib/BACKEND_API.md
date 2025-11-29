@@ -174,3 +174,27 @@ All settings routes use `router.use(protect)` so every path beneath `/settings` 
 - System utilities: `GET /settings/system`, `POST /settings/system/clear-cache`, `POST /settings/system/optimize-database`, `POST /settings/system/export-logs`.
 
 Expect `{ success: true, data: { ... } }` responses mirroring controller logic. Mutations usually return a confirmation `message` as well.
+
+## 10. Dashboard (`/dashboard`)
+
+- `GET /dashboard/stats` – totals for students, lessons, revenue, etc.
+- `GET /dashboard/activities` – recent actions feed (students added, payments recorded, etc.).
+- `GET /dashboard/charts` – structured data meant for client-side visualizations (arrays ready for recharts/chart.js).
+
+## 11. Health & Misc
+
+- `GET /health` – unauthenticated heartbeat `{ success, message, timestamp, environment, uptime }`.
+- `GET /` – root API descriptor (lists endpoints and links to `/api-docs`).
+
+## 12. Error Reference
+
+if you face this errors, here is how to handle them:
+
+| HTTP code | reason                                                          | how to handle                                 |
+|-----------|-----------------------------------------------------------------|-----------------------------------------------|
+| 400       | Validation error (missing field, duplicate email, invalid time) | Show inline error. Message comes from server. |
+| 401       | Missing/invalid token                                           | Redirect to login, refresh token.             |
+| 403       | Forbidden (role check)                                          | Hide UI or show insufficient rights message.  |
+| 404       | Resource not found (invalid ID, deleted entity)                 | Show not-found state.                         |
+| 429       | Rate limited (login/register)                                   | Display retry wait guidance.                  |
+| 500       | Unhandled server error                                          | Retry later or contact support.               |
