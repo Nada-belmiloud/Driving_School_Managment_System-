@@ -21,3 +21,40 @@ Most endpoints are protected. Always include `Authorization: Bearer <JWT>` excep
 - **Filtering & Sorting**: many list endpoints accept `search`, `status`, `licenseType`, `sortBy`, etc., as noted below.
 - **Dates**: send ISO 8601 strings (`2025-01-15T09:00:00.000Z`) unless the controller specifically asks for `YYYY-MM-DD` and `HH:MM` (lessons).
 - **Errors**: failures follow `{ success: false, error: "message" }` with appropriate HTTP codes (see `middleware/error.middleware.js`). Validation issues return code `400`.
+
+## 3. Authentication (`/auth`)
+
+| Method | Path | Description                           | Body                   |
+| ------ | ---- |---------------------------------------|------------------------|
+| POST | `/auth/register` | add new admin (rate-limited)          | `{ name, email, password, role? }` 
+| POST | `/auth/login` | login and receive JWT (rate-limited)  | `{ email, password }`  
+| GET | `/auth/me` | get current admin profile             |                        |
+| PUT | `/auth/updatepassword` | update password                       | `{ currentPassword, newPassword }` 
+| POST | `/auth/logout` | logout (token removal is client-side) |                        |
+
+**Sample Login Request**
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "secret123"
+}
+```
+**Sample Response**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "663...",
+    "name": "Admin",
+    "email": "admin@example.com",
+    "role": "admin",
+    "token": "<JWT>"
+  }
+}
+```
+
+Use the returned `token` for all other endpoints.
+
