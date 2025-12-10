@@ -1,32 +1,32 @@
-// backend/tests/unit/models/student.test.js
+// backend/tests/unit/models/candidate.test.js
 
 /**
- * this file tests the student data model in the driving school system
+ * this file tests the candidate data model in the driving school system
  *
  * what it does:
- * - tests if students can be created with correct information (name, email, phone, etc.)
- * - verifies that required fields are enforced (you can't save a student without a name)
+ * - tests if candidates can be created with correct information (name, email, phone, etc.)
+ * - verifies that required fields are enforced (you can't save a candidate without a name)
  * - checks that email addresses are in the correct format
- * - ensures license types are valid (like B, A, C but not Z)
+ * - ensures license types are valid (A1, A2, B, C1, C2, D)
  * - prevents duplicate email addresses in the system
  * - tests that extra spaces in names and emails are removed automatically
  * - verifies default values are set correctly (like status being "active")
  *
  * how it works:
- * - creates test students with different data combinations
- * - tries to save valid students and checks they are saved correctly
- * - tries to save invalid students and makes sure they are rejected
- * - uses a temporary test database so it doesn't affect real student records
+ * - creates test candidates with different data combinations
+ * - tries to save valid candidates and checks they are saved correctly
+ * - tries to save invalid candidates and makes sure they are rejected
+ * - uses a temporary test database so it doesn't affect real candidate records
  * - each test is independent and doesn't interfere with other tests
  */
 
-import Student from '../../../src/models/student.model.js';
+import Candidate from '../../../src/models/candidate.model.js';
 import '../../../tests/setup.js';
 
-describe('Student Model', () => {
+describe('Candidate Model', () => {
     describe('Validation', () => {
-        it('should create a valid student', async () => {
-            const validStudent = {
+        it('should create a valid candidate', async () => {
+            const validCandidate = {
                 name: 'abderrahmane houri',
                 email: 'abderrahmane.houri@ensia.edu.dz',
                 phone: '1234567890',
@@ -34,21 +34,21 @@ describe('Student Model', () => {
                 dateOfBirth: new Date('2005-09-06'),
             };
 
-            const student = new Student(validStudent);
-            const savedStudent = await student.save();
+            const candidate = new Candidate(validCandidate);
+            const savedCandidate = await candidate.save();
 
-            expect(savedStudent._id).toBeDefined();
-            expect(savedStudent.name).toBe(validStudent.name);
-            expect(savedStudent.email).toBe(validStudent.email);
-            expect(savedStudent.status).toBe('active'); // default value
+            expect(savedCandidate._id).toBeDefined();
+            expect(savedCandidate.name).toBe(validCandidate.name);
+            expect(savedCandidate.email).toBe(validCandidate.email);
+            expect(savedCandidate.status).toBe('active'); // default value
         });
 
         it('should fail without required fields', async () => {
-            const invalidStudent = new Student({});
+            const invalidCandidate = new Candidate({});
 
             let err;
             try {
-                await invalidStudent.save();
+                await invalidCandidate.save();
             } catch (error) {
                 err = error;
             }
@@ -61,7 +61,7 @@ describe('Student Model', () => {
         });
 
         it('should fail with invalid email', async () => {
-            const student = new Student({
+            const candidate = new Candidate({
                 name: 'abderrahmane houri',
                 email: 'invalid-email',
                 phone: '1234567890',
@@ -70,7 +70,7 @@ describe('Student Model', () => {
 
             let err;
             try {
-                await student.save();
+                await candidate.save();
             } catch (error) {
                 err = error;
             }
@@ -80,7 +80,7 @@ describe('Student Model', () => {
         });
 
         it('should fail with invalid license type', async () => {
-            const student = new Student({
+            const candidate = new Candidate({
                 name: 'abderrahmane houri',
                 email: 'abderrahmane.houri@ensia.edu.dz',
                 phone: '1234567890',
@@ -89,7 +89,7 @@ describe('Student Model', () => {
 
             let err;
             try {
-                await student.save();
+                await candidate.save();
             } catch (error) {
                 err = error;
             }
@@ -99,18 +99,18 @@ describe('Student Model', () => {
         });
 
         it('should enforce unique email', async () => {
-            const studentData = {
+            const candidateData = {
                 name: 'abderrahmane houri',
                 email: 'abderrahmane.houri@ensia.edu.dz',
                 phone: '1234567890',
                 licenseType: 'B',
             };
 
-            await Student.create(studentData);
+            await Candidate.create(candidateData);
 
             let err;
             try {
-                await Student.create(studentData);
+                await Candidate.create(candidateData);
             } catch (error) {
                 err = error;
             }
@@ -120,44 +120,41 @@ describe('Student Model', () => {
         });
 
         it('should trim whitespace from strings', async () => {
-            const student = await Student.create({
+            const candidate = await Candidate.create({
                 name: '  abderrahmane houri  ',
                 email: '  abderrahmane.houri@ensia.edu.dz  ',
                 phone: '1234567890',
                 licenseType: 'B',
             });
 
-            expect(student.name).toBe('abderrahmane houri');
-            expect(student.email).toBe('abderrahmane.houri@ensia.edu.dz');
+            expect(candidate.name).toBe('abderrahmane houri');
+            expect(candidate.email).toBe('abderrahmane.houri@ensia.edu.dz');
         });
 
         it('should convert email to lowercase', async () => {
-            const student = await Student.create({
+            const candidate = await Candidate.create({
                 name: 'abderrahmane houri',
                 email: 'abderrahmane.houri@ensia.edu.dz',
                 phone: '1234567890',
                 licenseType: 'B',
             });
 
-            expect(student.email).toBe('abderrahmane.houri@ensia.edu.dz');
+            expect(candidate.email).toBe('abderrahmane.houri@ensia.edu.dz');
         });
     });
 
     describe('Default Values', () => {
         it('should set default values correctly', async () => {
-            const student = await Student.create({
+            const candidate = await Candidate.create({
                 name: 'abderrahmane houri',
                 email: 'abderrahmane.houri@ensia.edu.dz',
                 phone: '1234567890',
                 licenseType: 'B',
             });
 
-            expect(student.status).toBe('active');
-            expect(student.progress.theoryLessons).toBe(0);
-            expect(student.progress.practicalLessons).toBe(0);
-            expect(student.progress.theoryTestPassed).toBe(false);
-            expect(student.progress.practicalTestPassed).toBe(false);
-            expect(student.registrationDate).toBeDefined();
+            expect(candidate.status).toBe('active');
+            expect(candidate.progress).toBe('highway_code');
+            expect(candidate.registrationDate).toBeDefined();
         });
     });
 
@@ -166,7 +163,7 @@ describe('Student Model', () => {
             const eighteenYearsAgo = new Date();
             eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
 
-            const student = await Student.create({
+            const candidate = await Candidate.create({
                 name: 'John Doe',
                 email: 'john@example.com',
                 phone: '1234567890',
@@ -174,7 +171,7 @@ describe('Student Model', () => {
                 dateOfBirth: eighteenYearsAgo,
             });
 
-            expect(student.dateOfBirth).toBeDefined();
+            expect(candidate.dateOfBirth).toBeDefined();
         });
 
         it('should reject age under 16', async () => {
@@ -183,9 +180,9 @@ describe('Student Model', () => {
 
             let err;
             try {
-                await Student.create({
-                    name: 'abderrahmane.houri@ensia.edu.dz',
-                    email: 'abderrahmane.houri@ensia.edu.dz',
+                await Candidate.create({
+                    name: 'Young Person',
+                    email: 'young@example.com',
                     phone: '1234567890',
                     licenseType: 'B',
                     dateOfBirth: tenYearsAgo,

@@ -4,15 +4,19 @@
  * this file tests the authentication system of the driving school application
  *
  * what it does:
- * - tests if admins can register with their name, email and password
  * - tests if admins can login with correct credentials
  * - tests if the system rejects wrong passwords or missing information
  * - tests if admins can view their profile information
  * - tests if admins can update their password
- * - makes sure duplicate emails are not allowed
+ * - tests if admins can update their email
+ * - tests if admins can update their name
  * - verifies that authentication tokens work correctly
  *
+ * Note: Registration is not tested because the system only requires one admin
+ * that is seeded via the seedAdmin script.
+ *
  * how it works:
+ * - creates a test admin directly in the database before tests
  * - sends fake http requests to the authentication endpoints
  * - checks if the responses are correct (success or error messages)
  * - uses a temporary test database so real data is not affected
@@ -25,85 +29,28 @@ import Admin from '../../src/models/admin.model.js';
 import '../setup.js';
 
 describe('Authentication API', () => {
-    describe('POST /api/v1/auth/register', () => {
-        it('should register a new admin', async () => {
-            const adminData = {
-                name: 'Test Admin',
-                email: 'admin@test.com',
-                password: 'password123',
-            };
+    // Helper function to create test admin directly in database
+    const createTestAdmin = async (data = {}) => {
+        const defaultData = {
+            name: 'Test Admin',
+            email: 'admin@test.com',
+            password: 'password123',
+        };
+        return await Admin.create({ ...defaultData, ...data });
+    };
 
-            const response = await request(app)
-                .post('/api/v1/auth/register')
-                .send(adminData)
-                .expect(201);
-
-            expect(response.body.success).toBe(true);
-            expect(response.body.data).toHaveProperty('token');
-            expect(response.body.data.email).toBe(adminData.email);
-            expect(response.body.data).not.toHaveProperty('password');
-        });
-
-        it('should fail with missing fields', async () => {
-            const response = await request(app)
-                .post('/api/v1/auth/register')
-                .send({
-                    name: 'Test Admin',
-                    // missing email and password
-                })
-                .expect(400);
-
-            expect(response.body.success).toBe(false);
-            expect(response.body.error).toBeDefined();
-        });
-
-        it('should fail with duplicate email', async () => {
-            const adminData = {
-                name: 'Test Admin',
-                email: 'admin@test.com',
-                password: 'password123',
-            };
-
-            // First registration
-            await request(app)
-                .post('/api/v1/auth/register')
-                .send(adminData)
-                .expect(201);
-
-            // Duplicate registration
-            const response = await request(app)
-                .post('/api/v1/auth/register')
-                .send(adminData)
-                .expect(400);
-
-            expect(response.body.success).toBe(false);
-            expect(response.body.error).toContain('already exists');
-        });
-
-        it('should fail with short password', async () => {
-            const response = await request(app)
-                .post('/api/v1/auth/register')
-                .send({
-                    name: 'Test Admin',
-                    email: 'admin@test.com',
-                    password: '123', // Too short
-                })
-                .expect(400);
-
-            expect(response.body.success).toBe(false);
-        });
-    });
+    // Helper function to login and get token
+    const loginAndGetToken = async (email = 'admin@test.com', password = 'password123') => {
+        const response = await request(app)
+            .post('/api/v1/auth/login')
+            .send({ email, password });
+        return response.body.data?.token;
+    };
 
     describe('POST /api/v1/auth/login', () => {
         beforeEach(async () => {
-            // Create a test admin
-            await request(app)
-                .post('/api/v1/auth/register')
-                .send({
-                    name: 'Test Admin',
-                    email: 'admin@test.com',
-                    password: 'password123',
-                });
+            // Create a test admin directly in database
+            await createTestAdmin();
         });
 
         it('should login with valid credentials', async () => {
@@ -162,16 +109,9 @@ describe('Authentication API', () => {
         let token;
 
         beforeEach(async () => {
-            // Register and get token
-            const response = await request(app)
-                .post('/api/v1/auth/register')
-                .send({
-                    name: 'Test Admin',
-                    email: 'admin@test.com',
-                    password: 'password123',
-                });
-
-            token = response.body.data.token;
+            // Create admin and get token
+            await createTestAdmin();
+            token = await loginAndGetToken();
         });
 
         it('should get current admin with valid token', async () => {
@@ -202,24 +142,17 @@ describe('Authentication API', () => {
         });
     });
 
-    describe('PUT /api/v1/auth/updatepassword', () => {
+    describe('PUT /api/v1/auth/password', () => {
         let token;
 
         beforeEach(async () => {
-            const response = await request(app)
-                .post('/api/v1/auth/register')
-                .send({
-                    name: 'Test Admin',
-                    email: 'admin@test.com',
-                    password: 'password123',
-                });
-
-            token = response.body.data.token;
+            await createTestAdmin();
+            token = await loginAndGetToken();
         });
 
-        it('should update password with valid credentials', async () => {
+        it('should update password with valid data', async () => {
             const response = await request(app)
-                .put('/api/v1/auth/updatepassword')
+                .put('/api/v1/auth/password')
                 .set('Authorization', `Bearer ${token}`)
                 .send({
                     currentPassword: 'password123',
@@ -228,7 +161,7 @@ describe('Authentication API', () => {
                 .expect(200);
 
             expect(response.body.success).toBe(true);
-            expect(response.body.data).toHaveProperty('token');
+            expect(response.body.message).toContain('Password updated');
 
             // Verify can login with new password
             const loginResponse = await request(app)
@@ -244,7 +177,7 @@ describe('Authentication API', () => {
 
         it('should fail with wrong current password', async () => {
             const response = await request(app)
-                .put('/api/v1/auth/updatepassword')
+                .put('/api/v1/auth/password')
                 .set('Authorization', `Bearer ${token}`)
                 .send({
                     currentPassword: 'wrongpassword',
@@ -253,6 +186,121 @@ describe('Authentication API', () => {
                 .expect(401);
 
             expect(response.body.success).toBe(false);
+        });
+
+        it('should fail with short new password', async () => {
+            const response = await request(app)
+                .put('/api/v1/auth/password')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    currentPassword: 'password123',
+                    newPassword: '123', // Too short
+                })
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+        });
+    });
+
+    describe('PUT /api/v1/auth/email', () => {
+        let token;
+
+        beforeEach(async () => {
+            await createTestAdmin();
+            token = await loginAndGetToken();
+        });
+
+        it('should update email with valid data', async () => {
+            const response = await request(app)
+                .put('/api/v1/auth/email')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    email: 'newemail@test.com',
+                    password: 'password123',
+                })
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.email).toBe('newemail@test.com');
+        });
+
+        it('should fail without password confirmation', async () => {
+            const response = await request(app)
+                .put('/api/v1/auth/email')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    email: 'newemail@test.com',
+                    // missing password
+                })
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+        });
+
+        it('should fail with wrong password', async () => {
+            const response = await request(app)
+                .put('/api/v1/auth/email')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    email: 'newemail@test.com',
+                    password: 'wrongpassword',
+                })
+                .expect(401);
+
+            expect(response.body.success).toBe(false);
+        });
+    });
+
+    describe('PUT /api/v1/auth/name', () => {
+        let token;
+
+        beforeEach(async () => {
+            await createTestAdmin();
+            token = await loginAndGetToken();
+        });
+
+        it('should update name with valid data', async () => {
+            const response = await request(app)
+                .put('/api/v1/auth/name')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    name: 'New Admin Name',
+                })
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.name).toBe('New Admin Name');
+        });
+
+        it('should fail with short name', async () => {
+            const response = await request(app)
+                .put('/api/v1/auth/name')
+                .set('Authorization', `Bearer ${token}`)
+                .send({
+                    name: 'A', // Too short
+                })
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+        });
+    });
+
+    describe('POST /api/v1/auth/logout', () => {
+        let token;
+
+        beforeEach(async () => {
+            await createTestAdmin();
+            token = await loginAndGetToken();
+        });
+
+        it('should logout successfully', async () => {
+            const response = await request(app)
+                .post('/api/v1/auth/logout')
+                .set('Authorization', `Bearer ${token}`)
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+            expect(response.body.message).toContain('Logged out');
         });
     });
 });
