@@ -107,6 +107,27 @@ app.get('/health', (req, res) => {
     });
 });
 
+// API version info endpoint
+app.get(API_VERSION, (req, res) => {
+    res.json({
+        success: true,
+        message: "Driving School Management System API v1",
+        version: "1.0.0",
+        endpoints: {
+            auth: `${API_VERSION}/auth`,
+            candidates: `${API_VERSION}/candidates`,
+            instructors: `${API_VERSION}/instructors`,
+            vehicles: `${API_VERSION}/vehicles`,
+            schedule: `${API_VERSION}/schedule`,
+            payments: `${API_VERSION}/payments`,
+            exams: `${API_VERSION}/exams`,
+            settings: `${API_VERSION}/settings`,
+            dashboard: `${API_VERSION}/dashboard`
+        },
+        documentation: "/api-docs"
+    });
+});
+
 // API information endpoint
 app.get("/", (req, res) => {
     res.json({
