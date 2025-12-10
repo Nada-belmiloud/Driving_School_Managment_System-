@@ -1,0 +1,214 @@
+// backend/src/server.js
+import express from "express";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from 'url';
+
+// Import configurations
+import { validateEnv, config } from "./config/env.config.js";
+import connectDB from "./config/db.js";
+import logger from "./config/logger.config.js";
+import { swaggerSpec, swaggerUi, swaggerUiOptions } from "./config/swagger.config.js";
+
+// Import middleware
+import { errorHandler } from "./middleware/error.middleware.js";
+import { morganMiddleware, requestLogger, errorLogger } from "./middleware/logger.middleware.js";
+import { apiLimiter } from "./middleware/rateLimiter.middleware.js";
+import {
+    helmetConfig,
+    mongoSanitizeConfig,
+    xssConfig,
+    customSecurityHeaders,
+    sanitizeRequest,
+    preventParamPollution
+} from "./middleware/security.middleware.js";
+
+// Validate environment variables first
+validateEnv();
+
+// Get dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Initialize express app
+const app = express();
+
+// Connect to MongoDB
+connectDB();
+
+// Trust proxy (important for rate limiting behind reverse proxy)
+app.set('trust proxy', 1);
+
+// Security middleware (applied early in the chain)
+app.use(helmetConfig);
+app.use(customSecurityHeaders);
+app.use(mongoSanitizeConfig);
+app.use(xssConfig);
+app.use(sanitizeRequest);
+app.use(preventParamPollution);
+
+// CORS configuration
+app.use(cors({
+    origin: config.corsOrigin,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Logging middleware
+app.use(morganMiddleware);
+if (config.nodeEnv === 'development') {
+    app.use(requestLogger);
+}
+
+// Apply rate limiting to all API routes
+app.use('/api/', apiLimiter);
+
+// Import routes
+import authRoutes from "./routes/auth.routes.js";
+import candidateRoutes from "./routes/candidate.routes.js";
+import instructorRoutes from "./routes/instructor.routes.js";
+import vehicleRoutes from "./routes/vehicle.routes.js";
+import scheduleRoutes from "./routes/schedule.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
+import examRoutes from "./routes/exam.routes.js";
+import settingsRoutes from "./routes/settings.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
+
+// API route version
+const API_VERSION = '/api/v1';
+
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+
+// API routes - using correct domain wording
+app.use(`${API_VERSION}/auth`, authRoutes);
+app.use(`${API_VERSION}/candidates`, candidateRoutes);
+app.use(`${API_VERSION}/instructors`, instructorRoutes);
+app.use(`${API_VERSION}/vehicles`, vehicleRoutes);
+app.use(`${API_VERSION}/schedule`, scheduleRoutes);
+app.use(`${API_VERSION}/payments`, paymentRoutes);
+app.use(`${API_VERSION}/exams`, examRoutes);
+app.use(`${API_VERSION}/settings`, settingsRoutes);
+app.use(`${API_VERSION}/dashboard`, dashboardRoutes);
+
+// Health check endpoint (no rate limiting)
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'Server is running',
+        timestamp: new Date().toISOString(),
+        environment: config.nodeEnv,
+        uptime: process.uptime(),
+    });
+});
+
+// API information endpoint
+app.get("/", (req, res) => {
+    res.json({
+        success: true,
+        message: "Driving School Management System API",
+        version: "1.0.0",
+        environment: config.nodeEnv,
+        endpoints: {
+            documentation: '/api-docs',
+            health: '/health',
+            auth: `${API_VERSION}/auth`,
+            candidates: `${API_VERSION}/candidates`,
+            instructors: `${API_VERSION}/instructors`,
+            vehicles: `${API_VERSION}/vehicles`,
+            schedule: `${API_VERSION}/schedule`,
+            payments: `${API_VERSION}/payments`,
+            exams: `${API_VERSION}/exams`,
+            settings: `${API_VERSION}/settings`,
+            dashboard: `${API_VERSION}/dashboard`
+        },
+        documentation: "Visit /api-docs for interactive API documentation"
+    });
+});
+
+// 404 handler
+app.use((req, res, next) => {
+    logger.warn('Route not found', {
+        method: req.method,
+        url: req.originalUrl,
+        ip: req.ip,
+    });
+
+    res.status(404).json({
+        success: false,
+        error: `Route ${req.originalUrl} not found`
+    });
+});
+
+// Error logging middleware
+app.use(errorLogger);
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
+
+// Start server
+const PORT = config.port;
+const server = app.listen(PORT, () => {
+    logger.info(`Server started successfully on port ${PORT}`);
+    console.log(`
+╔══════════════════════════════════════════════════════════════╗
+║         Driving School Management System API                 ║
+╠══════════════════════════════════════════════════════════════╣
+║  Environment: ${config.nodeEnv.padEnd(46)}║
+║  Server running on port: ${PORT.toString().padEnd(35)}║
+║  API base URL: http://localhost:${PORT}${API_VERSION.padEnd(20)}║
+║  Documentation: http://localhost:${PORT}/api-docs${' '.repeat(16)}║
+╠══════════════════════════════════════════════════════════════╣
+║  Endpoints:                                                  ║
+║  • Auth:        ${API_VERSION}/auth${' '.repeat(29)}║
+║  • Candidates:  ${API_VERSION}/candidates${' '.repeat(24)}║
+║  • Instructors: ${API_VERSION}/instructors${' '.repeat(23)}║
+║  • Vehicles:    ${API_VERSION}/vehicles${' '.repeat(26)}║
+║  • Schedule:    ${API_VERSION}/schedule${' '.repeat(26)}║
+║  • Payments:    ${API_VERSION}/payments${' '.repeat(26)}║
+║  • Exams:       ${API_VERSION}/exams${' '.repeat(29)}║
+║  • Settings:    ${API_VERSION}/settings${' '.repeat(26)}║
+║  • Dashboard:   ${API_VERSION}/dashboard${' '.repeat(25)}║
+╠══════════════════════════════════════════════════════════════╣
+║  Security Features Enabled:                                  ║
+║  • Rate Limiting ✓                                           ║
+║  • Helmet Security Headers ✓                                 ║
+║  • MongoDB Sanitization ✓                                    ║
+║  • XSS Protection ✓                                          ║
+║  • Request Logging ✓                                         ║
+╚══════════════════════════════════════════════════════════════╝
+    `);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+    logger.error('Unhandled Rejection', {
+        error: err.message,
+        stack: err.stack,
+    });
+    console.error(`Unhandled Rejection: ${err.message}`);
+
+    // Close server & exit process
+    server.close(() => {
+        logger.info('Server closed due to unhandled rejection');
+        process.exit(1);
+    });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+    logger.error('Uncaught Exception', {
+        error: err.message,
+        stack: err.stack,
+    });
+    console.error(`Uncaught Exception: ${err.message}`);
+    process.exit(1);
+});
+
+export default app;
+
