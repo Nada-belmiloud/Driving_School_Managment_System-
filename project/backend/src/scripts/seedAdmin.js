@@ -8,11 +8,11 @@ import Admin from '../models/admin.model.js';
 
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/driving_school';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/driving_school_malak';
 
 const seedAdmin = async () => {
     try {
-        await mongoose.connect(MONGODB_URI);
+        await mongoose.connect(MONGO_URI);
         console.log('Connected to MongoDB');
 
         // Check if admin already exists
