@@ -9,12 +9,12 @@ All endpoints require authentication (include `Authorization: Bearer <token>` he
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Get all instructors (with filters) |
-| GET | `/stats` | Get instructor statistics |
+| GET | `/count` | Get total instructor count |
 | GET | `/:id` | Get single instructor by ID |
-| GET | `/:id/schedule` | Get instructor schedule |
 | POST | `/` | Create new instructor |
 | PUT | `/:id` | Update instructor |
-| DELETE | `/:id` | Delete instructor |
+| DELETE | `/:id` | Soft delete instructor |
+| PUT | `/:id/assign-vehicle` | Assign vehicle to instructor |
 
 ---
 
@@ -25,7 +25,7 @@ Retrieve a paginated list of instructors with optional filters.
 ### Request
 
 ```http
-GET /api/v1/instructors?page=1&limit=10&status=active&search=john
+GET /api/v1/instructors?page=1&limit=10&status=active&search=ahmed
 ```
 
 ### Query Parameters
@@ -34,8 +34,8 @@ GET /api/v1/instructors?page=1&limit=10&status=active&search=john
 |-----------|------|----------|-------------|
 | page | number | No | Page number (default: 1) |
 | limit | number | No | Items per page (default: 10, max: 100) |
-| search | string | No | Search by name, email, or phone |
-| status | string | No | Filter by status (active, inactive, on-leave, terminated) |
+| search | string | No | Search by name or email |
+| status | string | No | Filter by status (active, deleted) |
 | sortBy | string | No | Sort field (default: -createdAt) |
 
 ### Response
@@ -52,31 +52,19 @@ GET /api/v1/instructors?page=1&limit=10&status=active&search=john
   },
   "data": [
     {
-      "_id": "64def456abc789012",
-      "name": "Michael Smith",
-      "email": "michael@drivingschool.com",
-      "phone": "9876543210",
-      "licenseNumber": "INS-12345-NY",
-      "experienceYears": 8,
-      "specialization": "both",
+      "_id": "64def456...",
+      "name": "Ahmed Instructor",
+      "email": "ahmed@drivingschool.com",
+      "phone": "0559876543",
+      "address": "456 Instructor St, Algiers",
+      "assignedVehicle": {
+        "_id": "64ghi789...",
+        "brand": "Renault",
+        "model": "Clio",
+        "licensePlate": "12345-123-16"
+      },
       "status": "active",
-      "hireDate": "2020-03-15T00:00:00.000Z",
-      "availability": {
-        "monday": true,
-        "tuesday": true,
-        "wednesday": true,
-        "thursday": true,
-        "friday": true,
-        "saturday": false,
-        "sunday": false
-      },
-      "stats": {
-        "totalLessons": 245,
-        "completedLessons": 220,
-        "avgRating": 4.5,
-        "totalReviews": 171
-      },
-      "createdAt": "2020-03-15T00:00:00.000Z",
+      "createdAt": "2024-01-10T00:00:00.000Z",
       "updatedAt": "2024-01-20T10:30:00.000Z"
     }
   ]
@@ -85,14 +73,14 @@ GET /api/v1/instructors?page=1&limit=10&status=active&search=john
 
 ---
 
-## Get Instructor Statistics
+## Get Instructor Count
 
-Retrieve statistics about instructors.
+Get total number of instructors (excluding deleted).
 
 ### Request
 
 ```http
-GET /api/v1/instructors/stats
+GET /api/v1/instructors/count
 ```
 
 ### Response
@@ -101,12 +89,7 @@ GET /api/v1/instructors/stats
 {
   "success": true,
   "data": {
-    "total": 25,
-    "active": 20,
-    "inactive": 3,
-    "onLeave": 2,
-    "avgExperience": 6,
-    "totalLessons": 5432
+    "total": 12
   }
 }
 ```
@@ -135,35 +118,19 @@ GET /api/v1/instructors/:id
 {
   "success": true,
   "data": {
-    "_id": "64def456abc789012",
-    "name": "Michael Smith",
-    "email": "michael@drivingschool.com",
-    "phone": "9876543210",
-    "licenseNumber": "INS-12345-NY",
-    "experienceYears": 8,
-    "specialization": "both",
-    "dateOfBirth": "1985-05-20T00:00:00.000Z",
-    "hireDate": "2020-03-15T00:00:00.000Z",
+    "_id": "64def456...",
+    "name": "Ahmed Instructor",
+    "email": "ahmed@drivingschool.com",
+    "phone": "0559876543",
+    "address": "456 Instructor St, Algiers",
+    "assignedVehicle": {
+      "_id": "64ghi789...",
+      "brand": "Renault",
+      "model": "Clio",
+      "licensePlate": "12345-123-16"
+    },
     "status": "active",
-    "availability": {
-      "monday": true,
-      "tuesday": true,
-      "wednesday": true,
-      "thursday": true,
-      "friday": true,
-      "saturday": false,
-      "sunday": false
-    },
-    "emergencyContact": "Jane Smith (Wife)",
-    "emergencyPhone": "9876543211",
-    "notes": "Excellent with nervous students",
-    "stats": {
-      "totalLessons": 245,
-      "completedLessons": 220,
-      "avgRating": 4.5,
-      "totalReviews": 171
-    },
-    "createdAt": "2020-03-15T00:00:00.000Z",
+    "createdAt": "2024-01-10T00:00:00.000Z",
     "updatedAt": "2024-01-20T10:30:00.000Z"
   }
 }
@@ -177,61 +144,7 @@ GET /api/v1/instructors/:id
   "error": "Instructor not found"
 }
 ```
-
 **Status Code**: 404
-
----
-
-## Get Instructor Schedule
-
-Get scheduled lessons for a specific instructor.
-
-### Request
-
-```http
-GET /api/v1/instructors/:id/schedule?startDate=2024-01-15&endDate=2024-01-21
-```
-
-### URL Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | string | Instructor ID |
-
-### Query Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| startDate | string | No | Start date (YYYY-MM-DD) |
-| endDate | string | No | End date (YYYY-MM-DD) |
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "_id": "64jkl012mno345678",
-      "studentId": {
-        "_id": "64abc123def456789",
-        "name": "John Doe",
-        "email": "john@example.com"
-      },
-      "vehicleId": {
-        "_id": "64ghi789jkl012345",
-        "plateNumber": "ABC-1234",
-        "model": "Corolla"
-      },
-      "date": "2024-01-20T00:00:00.000Z",
-      "time": "10:00",
-      "duration": 60,
-      "status": "scheduled",
-      "lessonType": "practical"
-    }
-  ]
-}
-```
 
 ---
 
@@ -250,25 +163,10 @@ Content-Type: application/json
 
 ```json
 {
-  "name": "Michael Smith",
-  "email": "michael@drivingschool.com",
-  "phone": "9876543210",
-  "licenseNumber": "INS-12345-NY",
-  "experienceYears": 8,
-  "specialization": "both",
-  "dateOfBirth": "1985-05-20",
-  "availability": {
-    "monday": true,
-    "tuesday": true,
-    "wednesday": true,
-    "thursday": true,
-    "friday": true,
-    "saturday": false,
-    "sunday": false
-  },
-  "emergencyContact": "Jane Smith (Wife)",
-  "emergencyPhone": "9876543211",
-  "notes": "Excellent with nervous students"
+  "name": "Ahmed Instructor",
+  "email": "ahmed@drivingschool.com",
+  "phone": "0559876543",
+  "address": "456 Instructor St, Algiers"
 }
 ```
 
@@ -276,7 +174,7 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| name | string | Instructor's full name (min 2 chars) |
+| name | string | Instructor's full name (2-100 chars) |
 | email | string | Valid email address (unique) |
 | phone | string | Phone number (10-15 digits) |
 
@@ -284,14 +182,7 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| licenseNumber | string | Professional license number |
-| experienceYears | number | Years of experience (0-50) |
-| specialization | string | "manual", "automatic", or "both" |
-| dateOfBirth | date | Birth date (age 21-75) |
-| availability | object | Weekly availability schedule |
-| emergencyContact | string | Emergency contact name |
-| emergencyPhone | string | Emergency phone (10-15 digits) |
-| notes | string | Additional notes (max 500 chars) |
+| address | string | Address (max 200 chars) |
 
 ### Response
 
@@ -299,34 +190,20 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "_id": "64def456abc789012",
-    "name": "Michael Smith",
-    "email": "michael@drivingschool.com",
-    "phone": "9876543210",
-    "licenseNumber": "INS-12345-NY",
-    "experienceYears": 8,
-    "specialization": "both",
+    "_id": "64def456...",
+    "name": "Ahmed Instructor",
+    "email": "ahmed@drivingschool.com",
+    "phone": "0559876543",
+    "address": "456 Instructor St, Algiers",
     "status": "active",
-    "hireDate": "2024-01-15T00:00:00.000Z",
-    "availability": {
-      "monday": true,
-      "tuesday": true,
-      "wednesday": true,
-      "thursday": true,
-      "friday": true,
-      "saturday": false,
-      "sunday": false
-    },
-    "createdAt": "2024-01-15T00:00:00.000Z",
-    "updatedAt": "2024-01-15T00:00:00.000Z"
+    "assignedVehicle": null
   },
   "message": "Instructor created successfully"
 }
 ```
-
 **Status Code**: 201
 
-### Error Responses
+### Error Response
 
 **Duplicate Email**
 ```json
@@ -341,7 +218,7 @@ Content-Type: application/json
 
 ## Update Instructor
 
-Update an existing instructor's information.
+Update an existing instructor.
 
 ### Request
 
@@ -350,23 +227,14 @@ PUT /api/v1/instructors/:id
 Content-Type: application/json
 ```
 
-### URL Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | string | Instructor ID |
-
 ### Request Body
 
 ```json
 {
-  "phone": "1112223333",
-  "status": "on-leave",
-  "notes": "On vacation until March 1st"
+  "name": "Ahmed Instructor Updated",
+  "phone": "0551112233"
 }
 ```
-
-**Note**: Only include fields you want to update. All fields are optional.
 
 ### Response
 
@@ -374,36 +242,21 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "_id": "64def456abc789012",
-    "name": "Michael Smith",
-    "email": "michael@drivingschool.com",
-    "phone": "1112223333",
-    "status": "on-leave",
-    "notes": "On vacation until March 1st",
-    "updatedAt": "2024-01-20T14:15:00.000Z"
+    "_id": "64def456...",
+    "name": "Ahmed Instructor Updated",
+    "email": "ahmed@drivingschool.com",
+    "phone": "0551112233",
+    "status": "active"
   },
   "message": "Instructor updated successfully"
 }
 ```
 
-### Error Response
-
-**Instructor Not Found**
-```json
-{
-  "success": false,
-  "error": "Instructor not found"
-}
-```
-**Status Code**: 404
-
 ---
 
-## Delete Instructor
+## Delete Instructor (Soft Delete)
 
-Delete an instructor record.
-
-**Warning**: Cannot delete instructors with scheduled lessons.
+Soft delete an instructor (sets status to 'deleted').
 
 ### Request
 
@@ -411,183 +264,125 @@ Delete an instructor record.
 DELETE /api/v1/instructors/:id
 ```
 
-### URL Parameters
+### Response
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | string | Instructor ID |
+```json
+{
+  "success": true,
+  "message": "Instructor deleted successfully"
+}
+```
+
+---
+
+## Assign Vehicle to Instructor
+
+Assign or unassign a vehicle to/from an instructor.
+
+### Request
+
+```http
+PUT /api/v1/instructors/:id/assign-vehicle
+Content-Type: application/json
+```
+
+### Request Body
+
+**Assign Vehicle:**
+```json
+{
+  "vehicleId": "64ghi789..."
+}
+```
+
+**Unassign Vehicle:**
+```json
+{
+  "vehicleId": null
+}
+```
 
 ### Response
 
 ```json
 {
   "success": true,
-  "data": {},
-  "message": "Instructor deleted successfully"
+  "data": {
+    "_id": "64def456...",
+    "name": "Ahmed Instructor",
+    "assignedVehicle": {
+      "_id": "64ghi789...",
+      "brand": "Renault",
+      "model": "Clio",
+      "licensePlate": "12345-123-16"
+    }
+  },
+  "message": "Vehicle assigned successfully"
 }
 ```
 
-**Status Code**: 200
+### Error Response
 
-### Error Responses
-
-**Has Scheduled Lessons**
+**Vehicle Not Found**
 ```json
 {
   "success": false,
-  "error": "Cannot delete instructor with scheduled lessons"
-}
-```
-**Status Code**: 400
-
-**Instructor Not Found**
-```json
-{
-  "success": false,
-  "error": "Instructor not found"
+  "error": "Vehicle not found"
 }
 ```
 **Status Code**: 404
 
----
-
-## Data Models
-
-### Instructor Object
-
-```typescript
+**Vehicle Already Assigned**
+```json
 {
-  _id: string,
-  name: string,
-  email: string,
-  phone: string,
-  licenseNumber?: string,
-  experienceYears: number,
-  specialization: 'manual' | 'automatic' | 'both',
-  dateOfBirth?: Date,
-  hireDate: Date,
-  status: 'active' | 'inactive' | 'on-leave' | 'terminated',
-  availability: {
-    monday: boolean,
-    tuesday: boolean,
-    wednesday: boolean,
-    thursday: boolean,
-    friday: boolean,
-    saturday: boolean,
-    sunday: boolean
-  },
-  emergencyContact?: string,
-  emergencyPhone?: string,
-  notes?: string,
-  createdAt: Date,
-  updatedAt: Date
+  "success": false,
+  "error": "Vehicle is already assigned to another instructor"
 }
 ```
+**Status Code**: 400
 
 ---
 
-## Validation Rules
+## Data Model
 
-### Name
-- Required
-- Minimum 2 characters
-- Maximum 100 characters
+### Instructor Schema
 
-### Email
-- Required
-- Must be valid email format
-- Must be unique
-- Case-insensitive
-
-### Phone
-- Required
-- Must be 10-15 digits
-- Numbers only
-
-### Experience Years
-- Optional
-- Range: 0-50 years
-
-### Specialization
-- One of: "manual", "automatic", "both"
-- Default: "both"
-
-### Date of Birth
-- Optional
-- Age must be between 21 and 75 years
-
-### Status
-- One of: active, inactive, on-leave, terminated
-- Default: active
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| name | String | Yes | Full name (2-100 chars) |
+| email | String | Yes | Unique email address |
+| phone | String | Yes | Phone (10-15 digits) |
+| address | String | No | Address (max 200 chars) |
+| assignedVehicle | ObjectId | No | Reference to Vehicle |
+| status | String | No | active, deleted (default: active) |
 
 ---
 
-## Error Codes
-
-| Code | Message | Description |
-|------|---------|-------------|
-| 400 | Bad Request | Invalid data or validation error |
-| 401 | Unauthorized | Missing or invalid token |
-| 404 | Not Found | Instructor doesn't exist |
-| 409 | Conflict | Duplicate email |
-| 500 | Server Error | Internal server error |
-
----
-
-## Related Endpoints
-
-- [Lessons API](./LESSONS.md) - Schedule lessons for instructors
-- [Vehicles API](./VEHICLES.md) - Vehicles used by instructors
-- [Authentication API](./AUTH.md) - Login and authentication
-
----
-
-## CURL Examples
+## cURL Examples
 
 ### Get All Instructors
 ```bash
 curl -X GET "http://localhost:5000/api/v1/instructors?page=1&limit=10" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <token>"
 ```
 
 ### Create Instructor
 ```bash
 curl -X POST http://localhost:5000/api/v1/instructors \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Michael Smith",
-    "email": "michael@drivingschool.com",
-    "phone": "9876543210",
-    "licenseNumber": "INS-12345-NY",
-    "experienceYears": 8,
-    "specialization": "both"
+    "name": "Ahmed Instructor",
+    "email": "ahmed@drivingschool.com",
+    "phone": "0559876543"
   }'
 ```
 
-### Get Instructor Schedule
+### Assign Vehicle
 ```bash
-curl -X GET "http://localhost:5000/api/v1/instructors/64def456abc789012/schedule?startDate=2024-01-15&endDate=2024-01-21" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
-### Update Instructor
-```bash
-curl -X PUT http://localhost:5000/api/v1/instructors/64def456abc789012 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+curl -X PUT http://localhost:5000/api/v1/instructors/64def456.../assign-vehicle \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{
-    "status": "on-leave",
-    "notes": "On vacation"
-  }'
+  -d '{"vehicleId": "64ghi789..."}'
 ```
 
-### Delete Instructor
-```bash
-curl -X DELETE http://localhost:5000/api/v1/instructors/64def456abc789012 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
-```
-
----
-
-For more examples and use cases, see the [Frontend Guide](../guides/FRONTEND_GUIDE.md).

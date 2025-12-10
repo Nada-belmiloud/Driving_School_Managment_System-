@@ -9,14 +9,14 @@ All endpoints require authentication (include `Authorization: Bearer <token>` he
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Get all payments (with filters) |
-| GET | `/stats` | Get payment statistics |
 | GET | `/pending` | Get pending payments |
-| GET | `/student/:studentId` | Get student's payment history |
+| GET | `/pending/count` | Get pending payments count and total |
+| GET | `/candidate/:candidateId` | Get candidate's payments |
 | GET | `/:id` | Get single payment by ID |
 | POST | `/` | Create new payment |
 | PUT | `/:id` | Update payment |
-| PUT | `/:id/mark-paid` | Mark payment as paid |
 | DELETE | `/:id` | Delete payment |
+| PUT | `/:id/mark-paid` | Mark payment as paid |
 
 ---
 
@@ -27,7 +27,7 @@ Retrieve a paginated list of payments with optional filters.
 ### Request
 
 ```http
-GET /api/v1/payments?page=1&limit=10&status=pending&studentId=64abc123
+GET /api/v1/payments?page=1&limit=10&status=pending&candidateId=64abc123
 ```
 
 ### Query Parameters
@@ -36,9 +36,8 @@ GET /api/v1/payments?page=1&limit=10&status=pending&studentId=64abc123
 |-----------|------|----------|-------------|
 | page | number | No | Page number (default: 1) |
 | limit | number | No | Items per page (default: 10) |
-| status | string | No | Filter by status (pending, paid, refunded, failed) |
-| studentId | string | No | Filter by student ID |
-| sortBy | string | No | Sort field (default: -date) |
+| status | string | No | Filter by status (pending, paid) |
+| candidateId | string | No | Filter by candidate ID |
 
 ### Response
 
@@ -49,30 +48,23 @@ GET /api/v1/payments?page=1&limit=10&status=pending&studentId=64abc123
   "pagination": {
     "page": 1,
     "limit": 10,
-    "total": 5,
-    "pages": 1
+    "total": 25,
+    "pages": 3
   },
   "data": [
     {
-      "_id": "64mno345pqr678901",
-      "studentId": {
-        "_id": "64abc123def456789",
-        "name": "John Doe",
-        "email": "john@example.com",
-        "phone": "1234567890"
+      "_id": "64pqr567...",
+      "candidateId": {
+        "_id": "64abc123...",
+        "name": "Mohammed Ali",
+        "email": "mohammed@example.com",
+        "phone": "0551234567"
       },
-      "amount": 150.00,
-      "method": "card",
-      "status": "paid",
+      "amount": 15000,
+      "status": "pending",
       "date": "2024-01-15T00:00:00.000Z",
-      "paidDate": "2024-01-15T14:20:00.000Z",
-      "receiptNumber": "RCP-1705318200-A1B2C3D4",
-      "description": "Payment for 3 practical driving lessons",
-      "category": "lesson",
-      "transactionId": "TXN-ABC123XYZ789",
-      "notes": "Payment processed via online portal",
       "createdAt": "2024-01-15T10:00:00.000Z",
-      "updatedAt": "2024-01-15T14:20:00.000Z"
+      "updatedAt": "2024-01-15T10:00:00.000Z"
     }
   ]
 }
@@ -80,52 +72,9 @@ GET /api/v1/payments?page=1&limit=10&status=pending&studentId=64abc123
 
 ---
 
-## Get Payment Statistics
-
-Retrieve statistics about payments and revenue.
-
-### Request
-
-```http
-GET /api/v1/payments/stats
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "totalPaid": 1250,
-    "totalPending": 45,
-    "totalRevenue": 187500.00,
-    "pendingAmount": 6750.00,
-    "byMethod": [
-      {
-        "_id": "card",
-        "count": 800,
-        "amount": 120000.00
-      },
-      {
-        "_id": "cash",
-        "count": 350,
-        "amount": 52500.00
-      },
-      {
-        "_id": "transfer",
-        "count": 100,
-        "amount": 15000.00
-      }
-    ]
-  }
-}
-```
-
----
-
 ## Get Pending Payments
 
-Get all payments with pending status.
+Get all payments with status 'pending'.
 
 ### Request
 
@@ -138,21 +87,18 @@ GET /api/v1/payments/pending
 ```json
 {
   "success": true,
-  "count": 3,
+  "count": 10,
   "data": [
     {
-      "_id": "64mno345pqr678901",
-      "studentId": {
-        "name": "John Doe",
-        "email": "john@example.com",
-        "phone": "1234567890"
+      "_id": "64pqr567...",
+      "candidateId": {
+        "_id": "64abc123...",
+        "name": "Mohammed Ali",
+        "phone": "0551234567"
       },
-      "amount": 150.00,
-      "method": "cash",
+      "amount": 15000,
       "status": "pending",
-      "date": "2024-01-20T00:00:00.000Z",
-      "description": "Payment for 3 driving lessons",
-      "category": "lesson"
+      "date": "2024-01-15T00:00:00.000Z"
     }
   ]
 }
@@ -160,21 +106,15 @@ GET /api/v1/payments/pending
 
 ---
 
-## Get Student Payments
+## Get Pending Payments Count
 
-Get all payments for a specific student.
+Get count and total amount of pending payments (for dashboard).
 
 ### Request
 
 ```http
-GET /api/v1/payments/student/:studentId
+GET /api/v1/payments/pending/count
 ```
-
-### URL Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| studentId | string | Student ID (MongoDB ObjectId) |
 
 ### Response
 
@@ -182,47 +122,46 @@ GET /api/v1/payments/student/:studentId
 {
   "success": true,
   "data": {
-    "payments": [
-      {
-        "_id": "64mno345pqr678901",
-        "amount": 150.00,
-        "method": "card",
-        "status": "paid",
-        "date": "2024-01-15T00:00:00.000Z",
-        "paidDate": "2024-01-15T14:20:00.000Z",
-        "receiptNumber": "RCP-1705318200-A1B2C3D4",
-        "description": "Payment for 3 practical driving lessons",
-        "category": "lesson"
-      },
-      {
-        "_id": "64mno345pqr678902",
-        "amount": 100.00,
-        "method": "cash",
-        "status": "pending",
-        "date": "2024-01-20T00:00:00.000Z",
-        "description": "Payment for 2 theory lessons",
-        "category": "lesson"
-      }
-    ],
-    "summary": {
-      "totalPaid": 450.00,
-      "totalPending": 100.00,
-      "paymentCount": 5
-    }
+    "count": 10,
+    "totalPendingAmount": 150000
   }
 }
 ```
 
-### Error Response
+---
+
+## Get Candidate Payments
+
+Get all payments for a specific candidate.
+
+### Request
+
+```http
+GET /api/v1/payments/candidate/:candidateId
+```
+
+### Response
 
 ```json
 {
-  "success": false,
-  "error": "Student not found"
+  "success": true,
+  "count": 3,
+  "data": [
+    {
+      "_id": "64pqr567...",
+      "amount": 15000,
+      "status": "paid",
+      "date": "2024-01-15T00:00:00.000Z"
+    },
+    {
+      "_id": "64pqr568...",
+      "amount": 10000,
+      "status": "pending",
+      "date": "2024-02-01T00:00:00.000Z"
+    }
+  ]
 }
 ```
-
-**Status Code**: 404
 
 ---
 
@@ -236,37 +175,24 @@ Retrieve details of a specific payment by ID.
 GET /api/v1/payments/:id
 ```
 
-### URL Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | string | Payment ID (MongoDB ObjectId) |
-
 ### Response
 
 ```json
 {
   "success": true,
   "data": {
-    "_id": "64mno345pqr678901",
-    "studentId": {
-      "_id": "64abc123def456789",
-      "name": "John Doe",
-      "email": "john@example.com",
-      "phone": "1234567890"
+    "_id": "64pqr567...",
+    "candidateId": {
+      "_id": "64abc123...",
+      "name": "Mohammed Ali",
+      "email": "mohammed@example.com",
+      "phone": "0551234567"
     },
-    "amount": 150.00,
-    "method": "card",
-    "status": "paid",
+    "amount": 15000,
+    "status": "pending",
     "date": "2024-01-15T00:00:00.000Z",
-    "paidDate": "2024-01-15T14:20:00.000Z",
-    "receiptNumber": "RCP-1705318200-A1B2C3D4",
-    "description": "Payment for 3 practical driving lessons",
-    "category": "lesson",
-    "transactionId": "TXN-ABC123XYZ789",
-    "notes": "Payment processed via online portal",
     "createdAt": "2024-01-15T10:00:00.000Z",
-    "updatedAt": "2024-01-15T14:20:00.000Z"
+    "updatedAt": "2024-01-15T10:00:00.000Z"
   }
 }
 ```
@@ -279,7 +205,6 @@ GET /api/v1/payments/:id
   "error": "Payment not found"
 }
 ```
-
 **Status Code**: 404
 
 ---
@@ -299,16 +224,10 @@ Content-Type: application/json
 
 ```json
 {
-  "studentId": "64abc123def456789",
-  "amount": 150.00,
-  "method": "card",
-  "status": "paid",
-  "date": "2024-01-15",
-  "paidDate": "2024-01-15T14:20:00.000Z",
-  "description": "Payment for 3 practical driving lessons",
-  "category": "lesson",
-  "transactionId": "TXN-ABC123XYZ789",
-  "notes": "Payment processed via online portal"
+  "candidateId": "64abc123...",
+  "amount": 15000,
+  "status": "pending",
+  "date": "2024-01-15"
 }
 ```
 
@@ -316,36 +235,15 @@ Content-Type: application/json
 
 | Field | Type | Description |
 |-------|------|-------------|
-| studentId | string | Student ID (must exist) |
-| amount | number | Payment amount (≥ 0) |
-| method | string | Payment method |
-
-### Payment Methods
-
-- cash
-- card
-- transfer
-- check
+| candidateId | string | Candidate's MongoDB ObjectId |
+| amount | number | Payment amount (min: 0) |
 
 ### Optional Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| status | string | Payment status (default: pending) |
+| status | string | pending, paid (default: pending) |
 | date | date | Payment date (default: now) |
-| paidDate | date | When payment was received |
-| description | string | Payment description (max 200 chars) |
-| category | string | Payment category (default: lesson) |
-| transactionId | string | External transaction ID |
-| notes | string | Additional notes (max 300 chars) |
-
-### Payment Categories
-
-- registration
-- lesson
-- exam-fee
-- material
-- other
 
 ### Response
 
@@ -353,57 +251,38 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "_id": "64mno345pqr678901",
-    "studentId": {
-      "name": "John Doe",
-      "email": "john@example.com",
-      "phone": "1234567890"
+    "_id": "64pqr567...",
+    "candidateId": {
+      "_id": "64abc123...",
+      "name": "Mohammed Ali",
+      "email": "mohammed@example.com",
+      "phone": "0551234567"
     },
-    "amount": 150.00,
-    "method": "card",
-    "status": "paid",
-    "date": "2024-01-15T00:00:00.000Z",
-    "paidDate": "2024-01-15T14:20:00.000Z",
-    "receiptNumber": "RCP-1705318200-A1B2C3D4",
-    "description": "Payment for 3 practical driving lessons",
-    "category": "lesson",
-    "transactionId": "TXN-ABC123XYZ789",
-    "createdAt": "2024-01-15T10:00:00.000Z",
-    "updatedAt": "2024-01-15T14:20:00.000Z"
+    "amount": 15000,
+    "status": "pending",
+    "date": "2024-01-15T00:00:00.000Z"
   },
   "message": "Payment recorded successfully"
 }
 ```
-
 **Status Code**: 201
 
-**Note**: Receipt number is auto-generated if not provided.
+### Error Response
 
-### Error Responses
-
-**Student Not Found**
+**Candidate Not Found**
 ```json
 {
   "success": false,
-  "error": "Student not found"
+  "error": "Candidate not found"
 }
 ```
 **Status Code**: 404
-
-**Invalid Amount**
-```json
-{
-  "success": false,
-  "error": "Amount cannot be negative"
-}
-```
-**Status Code**: 400
 
 ---
 
 ## Update Payment
 
-Update an existing payment's information.
+Update an existing payment.
 
 ### Request
 
@@ -412,22 +291,14 @@ PUT /api/v1/payments/:id
 Content-Type: application/json
 ```
 
-### URL Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | string | Payment ID |
-
 ### Request Body
 
 ```json
 {
-  "amount": 200.00,
-  "notes": "Updated amount after discount applied"
+  "amount": 17000,
+  "status": "paid"
 }
 ```
-
-**Note**: Only include fields you want to update. All fields are optional.
 
 ### Response
 
@@ -435,36 +306,38 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "_id": "64mno345pqr678901",
-    "studentId": {
-      "name": "John Doe",
-      "email": "john@example.com",
-      "phone": "1234567890"
-    },
-    "amount": 200.00,
-    "method": "card",
-    "status": "paid",
-    "notes": "Updated amount after discount applied",
-    "updatedAt": "2024-01-20T10:00:00.000Z"
+    "_id": "64pqr567...",
+    "amount": 17000,
+    "status": "paid"
   },
   "message": "Payment updated successfully"
 }
 ```
 
-### Error Response
+---
+
+## Delete Payment
+
+Delete a payment record.
+
+### Request
+
+```http
+DELETE /api/v1/payments/:id
+```
+
+### Response
 
 ```json
 {
-  "success": false,
-  "error": "Payment not found"
+  "success": true,
+  "message": "Payment deleted successfully"
 }
 ```
 
-**Status Code**: 404
-
 ---
 
-## Mark Payment as Paid
+## Mark as Paid
 
 Mark a pending payment as paid.
 
@@ -474,197 +347,42 @@ Mark a pending payment as paid.
 PUT /api/v1/payments/:id/mark-paid
 ```
 
-### URL Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | string | Payment ID |
-
 ### Response
 
 ```json
 {
   "success": true,
   "data": {
-    "_id": "64mno345pqr678901",
-    "studentId": {
-      "name": "John Doe",
-      "email": "john@example.com",
-      "phone": "1234567890"
-    },
-    "amount": 150.00,
-    "method": "cash",
-    "status": "paid",
-    "date": "2024-01-15T00:00:00.000Z",
-    "paidDate": "2024-01-20T10:00:00.000Z",
-    "receiptNumber": "RCP-1705318200-A1B2C3D4",
-    "updatedAt": "2024-01-20T10:00:00.000Z"
+    "_id": "64pqr567...",
+    "status": "paid"
   },
   "message": "Payment marked as paid"
 }
 ```
 
-**Note**: This automatically sets `paidDate` to current timestamp and updates status to "paid".
-
----
-
-## Delete Payment
-
-Delete a payment record.
-
-**Warning**: This permanently removes the payment and cannot be undone.
-
-### Request
-
-```http
-DELETE /api/v1/payments/:id
-```
-
-### URL Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | string | Payment ID |
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {},
-  "message": "Payment deleted successfully"
-}
-```
-
-**Status Code**: 200
-
 ### Error Response
 
+**Already Paid**
 ```json
 {
   "success": false,
-  "error": "Payment not found"
+  "error": "Payment is already marked as paid"
 }
 ```
-
-**Status Code**: 404
-
----
-
-## Data Models
-
-### Payment Object
-
-```typescript
-{
-  _id: string,
-  studentId: string | Student,
-  amount: number,
-  method: 'cash' | 'card' | 'transfer' | 'check',
-  status: 'pending' | 'paid' | 'refunded' | 'failed',
-  date: Date,
-  paidDate?: Date,
-  receiptNumber: string,
-  description?: string,
-  category: 'registration' | 'lesson' | 'exam-fee' | 'material' | 'other',
-  transactionId?: string,
-  notes?: string,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+**Status Code**: 400
 
 ---
 
-## Validation Rules
+## Data Model
 
-### Student ID
-- Required
-- Must be valid MongoDB ObjectId
-- Student must exist in database
+### Payment Schema
 
-### Amount
-- Required
-- Must be a number
-- Cannot be negative (≥ 0)
-
-### Method
-- Required
-- One of: cash, card, transfer, check
-
-### Status
-- One of: pending, paid, refunded, failed
-- Default: pending
-
-### Category
-- One of: registration, lesson, exam-fee, material, other
-- Default: lesson
-
-### Description
-- Optional
-- Maximum 200 characters
-
-### Notes
-- Optional
-- Maximum 300 characters
-
----
-
-## Receipt Number Format
-
-Receipt numbers are auto-generated in the format:
-
-```
-RCP-{timestamp}-{random}
-```
-
-Example: `RCP-1705318200-A1B2C3D4`
-
-- `RCP`: Prefix for "Receipt"
-- `{timestamp}`: Unix timestamp
-- `{random}`: Random 8-character alphanumeric string (uppercase)
-
----
-
-## Business Rules
-
-### Status Transitions
-
-```
-pending → paid ✓
-pending → failed ✓
-paid → refunded ✓
-refunded → [no changes]
-failed → pending ✓
-```
-
-### Payment Recording
-- Every payment must be linked to a student
-- Receipt numbers are automatically generated and unique
-- Paid date is automatically set when marking as paid
-
-### Student Payment History
-- All payments are kept in student's payment history
-- Total paid and pending amounts are tracked
-- Payment history is sorted by date (newest first)
-
----
-
-## Error Codes
-
-| Code | Message | Description |
-|------|---------|-------------|
-| 400 | Bad Request | Invalid data or validation error |
-| 401 | Unauthorized | Missing or invalid token |
-| 404 | Not Found | Payment or student not found |
-| 500 | Server Error | Internal server error |
-
----
-
-## Related Endpoints
-
-- [Students API](./STUDENTS.md) - Students making payments
-- [Lessons API](./LESSONS.md) - Lessons that require payment
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| candidateId | ObjectId | Yes | Reference to Candidate |
+| amount | Number | Yes | Payment amount (min: 0) |
+| status | String | No | pending, paid (default: pending) |
+| date | Date | No | Payment date (default: now) |
 
 ---
 
@@ -673,42 +391,29 @@ failed → pending ✓
 ### Get All Payments
 ```bash
 curl -X GET "http://localhost:5000/api/v1/payments?page=1&limit=10" \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer <token>"
 ```
 
 ### Create Payment
 ```bash
 curl -X POST http://localhost:5000/api/v1/payments \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "studentId": "64abc123def456789",
-    "amount": 150.00,
-    "method": "card",
-    "status": "paid",
-    "description": "Payment for 3 driving lessons",
-    "category": "lesson"
+    "candidateId": "64abc123...",
+    "amount": 15000
   }'
-```
-
-### Get Student Payments
-```bash
-curl -X GET http://localhost:5000/api/v1/payments/student/64abc123def456789 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
 ### Mark as Paid
 ```bash
-curl -X PUT http://localhost:5000/api/v1/payments/64mno345pqr678901/mark-paid \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+curl -X PUT http://localhost:5000/api/v1/payments/64pqr567.../mark-paid \
+  -H "Authorization: Bearer <token>"
 ```
 
-### Delete Payment
+### Get Pending Count
 ```bash
-curl -X DELETE http://localhost:5000/api/v1/payments/64mno345pqr678901 \
-  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+curl -X GET http://localhost:5000/api/v1/payments/pending/count \
+  -H "Authorization: Bearer <token>"
 ```
 
----
-
-For more examples and use cases, see the [Frontend Guide](../guides/FRONTEND_GUIDE.md).

@@ -1,200 +1,331 @@
-# Driving School Management System; Backend API Guide
+# Driving School Management System - Backend API Guide
 
-this document explains how frontend should talk to the Node.js/Express API that lives in `project/lib`.
+This document explains how the frontend should communicate with the Node.js/Express backend API located in `project/backend`.
 
-> **Base URL**: `http://localhost:<PORT>/api/v1` 
->(see `.env.example` for the exact `PORT`).
+> **Base URL**: `http://localhost:5000/api/v1`  
+> (configurable via `PORT` in `.env`)
 
-Most endpoints are protected. Always include `Authorization: Bearer <JWT>` except for `/auth/login`, `/auth/register`, and `/health`.
+Most endpoints are protected. Always include `Authorization: Bearer <JWT>` except for `/auth/login` and `/health`.
 
-## 1. how to start the backend
+---
 
-1. Run the backend (from `project/lib`): `npm install && npm run dev`, dont forget to create `.env` file and configure it.
-2. Copy `.env.example` to `.env` and set:
-   - `PORT`, `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRE`, `DEFAULT_PAGE_SIZE`, `CORS_ORIGIN`.
-3. Once the server starts with no errors you can inspect Swagger docs at `/api-docs` for live schemas.
+## 1. Getting Started
+
+### Prerequisites
+- Node.js 18+
+- MongoDB (running locally or MongoDB Atlas)
+
+### Installation
+
+```bash
+cd project/backend
+npm install
+```
+
+### Configuration
+
+1. Copy `.env.example` to `.env`
+2. Configure the following variables:
+   - `NODE_ENV` - development or production
+   - `PORT` - Server port (default: 5000)
+   - `MONGO_URI` - MongoDB connection string
+   - `JWT_SECRET` - JWT secret key (min 32 characters)
+   - `JWT_EXPIRE` - Token expiration (default: 7d)
+   - `CORS_ORIGIN` - Frontend URL (default: http://localhost:3000)
+
+### Running the Server
+
+```bash
+# Development mode (with hot reload)
+npm run dev
+
+# Production mode
+npm start
+
+# Seed admin user
+npm run seed:admin
+```
+
+### API Documentation
+
+Swagger documentation is available at `/api-docs` when the server is running.
+
+---
 
 ## 2. Shared Conventions
 
-- **Headers**: `Content-Type: application/json` + `Authorization: Bearer <token>` when required.
-- **Pagination**: standard `page` (default 1) and `limit` (default `DEFAULT_PAGE_SIZE`). Responses include `pagination` with `page`, `limit`, `total`, `pages`.
-- **Filtering & Sorting**: many list endpoints accept `search`, `status`, `licenseType`, `sortBy`, etc., as noted below.
-- **Dates**: send ISO 8601 strings (`2025-01-15T09:00:00.000Z`) unless the controller specifically asks for `YYYY-MM-DD` and `HH:MM` (lessons).
-- **Errors**: failures follow `{ success: false, error: "message" }` with appropriate HTTP codes (see `middleware/error.middleware.js`). Validation issues return code `400`.
-
-## 3. Authentication (`/auth`)
-
-| Method | Path | Description                           | Body                   |
-| ------ | ---- |---------------------------------------|------------------------|
-| POST | `/auth/register` | add new admin (rate-limited)          | `{ name, email, password, role? }` 
-| POST | `/auth/login` | login and receive JWT (rate-limited)  | `{ email, password }`  
-| GET | `/auth/me` | get current admin profile             |                        |
-| PUT | `/auth/updatepassword` | update password                       | `{ currentPassword, newPassword }` 
-| POST | `/auth/logout` | logout (token removal is client-side) |                        |
-
-**Sample Login Request**
-```http
-POST /api/v1/auth/login
+### Headers
+```
 Content-Type: application/json
-
-{
-  "email": "admin@example.com",
-  "password": "secret123"
-}
+Authorization: Bearer <token>  (for protected routes)
 ```
-**Sample Response**
+
+### Pagination
+Most list endpoints support:
+- `page` - Page number (default: 1)
+- `limit` - Items per page (default: 10, max: 100)
+
+Response includes:
 ```json
 {
-  "success": true,
-  "data": {
-    "id": "663...",
-    "name": "Admin",
-    "email": "admin@example.com",
-    "role": "admin",
-    "token": "<JWT>"
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 100,
+    "pages": 10
   }
 }
 ```
 
-Use the returned `token` for all other endpoints.
+### Filtering & Sorting
+- `search` - Text search (name, email, phone)
+- `status` - Filter by status
+- `sortBy` - Sort field (prefix with `-` for descending)
 
-## 4. Students / Candidates (`/students`)
+### Date Formats
+- Dates: `YYYY-MM-DD` (e.g., `2025-01-15`)
+- Times: `HH:MM` (e.g., `09:00`)
 
-- `GET /students?search=&licenseType=B&sortBy=-registrationDate&page=1&limit=10`
-  - Returns `{ success, count, pagination, data: [students] }`.
-- `GET /students/:id`: get single student.
-- `POST /students` : create student. Body must include `name`, `email`, `phone`, `licenseType`, plus optional `address`, `dateOfBirth`, `notes`.
-- `PUT /students/:id` : update fields (email uniqueness enforced).
-- `DELETE /students/:id` : removes student (fails with 404 if missing).
-- `GET /students/stats` : get counts `{ total, recentlyRegistered, byLicenseType }`.
-
-**Create Student Example**
+### Error Response
 ```json
 {
-  "name": "Sara Ali",
-  "email": "sara.ali@example.com",
-  "phone": "1234567890",
-  "licenseType": "B",
-  "address": "downtown",
-  "notes": "additional notes"
+  "success": false,
+  "error": "Error message here"
 }
 ```
-**Response**
-```json
-{
-  "success": true,
-  "data": {
-    "_id": "665...",
-    "name": "Sara Ali",
-    "licenseType": "B",
-    "status": "active",
-    "createdAt": "2025-12-01T09:10:00.000Z"
+
+---
+
+## 3. API Endpoints Overview
+
+### Authentication (`/auth`)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| POST | `/auth/login` | Login admin | No |
+| GET | `/auth/me` | Get current admin | Yes |
+| PUT | `/auth/email` | Update email | Yes |
+| PUT | `/auth/password` | Update password | Yes |
+| PUT | `/auth/name` | Update name | Yes |
+| POST | `/auth/logout` | Logout | Yes |
+
+### Candidates (`/candidates`)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/candidates` | Get all candidates | Yes |
+| GET | `/candidates/count` | Get candidate count | Yes |
+| GET | `/candidates/:id` | Get single candidate | Yes |
+| POST | `/candidates` | Create candidate | Yes |
+| PUT | `/candidates/:id` | Update candidate | Yes |
+| DELETE | `/candidates/:id` | Delete candidate | Yes |
+| PUT | `/candidates/:id/progress` | Update progress | Yes |
+
+### Instructors (`/instructors`)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/instructors` | Get all instructors | Yes |
+| GET | `/instructors/count` | Get instructor count | Yes |
+| GET | `/instructors/:id` | Get single instructor | Yes |
+| POST | `/instructors` | Create instructor | Yes |
+| PUT | `/instructors/:id` | Update instructor | Yes |
+| DELETE | `/instructors/:id` | Delete instructor | Yes |
+| PUT | `/instructors/:id/assign-vehicle` | Assign vehicle | Yes |
+
+### Vehicles (`/vehicles`)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/vehicles` | Get all vehicles | Yes |
+| GET | `/vehicles/count` | Get vehicle count | Yes |
+| GET | `/vehicles/:id` | Get single vehicle | Yes |
+| POST | `/vehicles` | Create vehicle | Yes |
+| PUT | `/vehicles/:id` | Update vehicle | Yes |
+| DELETE | `/vehicles/:id` | Delete vehicle | Yes |
+| PUT | `/vehicles/:id/assign-instructor` | Assign instructor | Yes |
+| GET | `/vehicles/:id/maintenance-logs` | Get maintenance logs | Yes |
+| POST | `/vehicles/:id/maintenance-logs` | Add maintenance log | Yes |
+| PUT | `/vehicles/:id/maintenance-logs/:logId` | Update maintenance log | Yes |
+
+### Schedule (`/schedule`)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/schedule` | Get all sessions | Yes |
+| GET | `/schedule/upcoming` | Get upcoming sessions | Yes |
+| GET | `/schedule/candidate/:candidateId` | Get candidate sessions | Yes |
+| GET | `/schedule/instructor/:instructorId` | Get instructor sessions | Yes |
+| GET | `/schedule/:id` | Get single session | Yes |
+| POST | `/schedule` | Create session | Yes |
+| PUT | `/schedule/:id` | Update session | Yes |
+| DELETE | `/schedule/:id` | Cancel session | Yes |
+| PUT | `/schedule/:id/complete` | Mark as completed | Yes |
+
+### Exams (`/exams`)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/exams` | Get all exams | Yes |
+| GET | `/exams/upcoming` | Get upcoming exams | Yes |
+| GET | `/exams/candidate/:candidateId` | Get candidate exams | Yes |
+| GET | `/exams/can-take/:candidateId/:examType` | Check can take exam | Yes |
+| GET | `/exams/:id` | Get single exam | Yes |
+| POST | `/exams` | Schedule exam | Yes |
+| PUT | `/exams/:id` | Update exam | Yes |
+| DELETE | `/exams/:id` | Cancel exam | Yes |
+| PUT | `/exams/:id/result` | Record result | Yes |
+
+### Payments (`/payments`)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/payments` | Get all payments | Yes |
+| GET | `/payments/pending` | Get pending payments | Yes |
+| GET | `/payments/pending/count` | Get pending count | Yes |
+| GET | `/payments/candidate/:candidateId` | Get candidate payments | Yes |
+| GET | `/payments/:id` | Get single payment | Yes |
+| POST | `/payments` | Create payment | Yes |
+| PUT | `/payments/:id` | Update payment | Yes |
+| DELETE | `/payments/:id` | Delete payment | Yes |
+| PUT | `/payments/:id/mark-paid` | Mark as paid | Yes |
+
+### Settings (`/settings`)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/settings` | Get settings | Yes |
+| PUT | `/settings/name` | Update name | Yes |
+| PUT | `/settings/email` | Update email | Yes |
+| PUT | `/settings/password` | Update password | Yes |
+
+### Dashboard (`/dashboard`)
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/dashboard/stats` | Get dashboard statistics | Yes |
+
+---
+
+## 4. Sample API Calls
+
+### Login
+
+```javascript
+const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: 'admin@drivingschool.com',
+    password: 'password123'
+  })
+});
+const data = await response.json();
+// Store token: localStorage.setItem('token', data.data.token);
+```
+
+### Get Candidates (with pagination)
+
+```javascript
+const token = localStorage.getItem('token');
+const response = await fetch('http://localhost:5000/api/v1/candidates?page=1&limit=10&status=active', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+const data = await response.json();
+// data.data = array of candidates
+// data.pagination = { page, limit, total, pages }
+```
+
+### Create Candidate
+
+```javascript
+const response = await fetch('http://localhost:5000/api/v1/candidates', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
   },
-  "message": "Student created successfully"
-}
+  body: JSON.stringify({
+    name: 'Mohammed Ali',
+    email: 'mohammed@example.com',
+    phone: '0551234567',
+    licenseType: 'B'
+  })
+});
 ```
 
-## 5. Instructors (`/instructors`)
+### Schedule a Session
 
-- `GET /instructors`: list with optional `search`, pagination, etc.
-- `POST /instructors`: requires `name`, `email`, `phone`.
-- `GET /instructors/:id`, `PUT /:id`, `DELETE /:id` – standard CRUD.
-- `GET /instructors/stats`: get data (totals, availability per controller implementation).
-- `GET /instructors/:id/schedule` – returns scheduled lessons for the instructor.
-
-## 6. Vehicles (`/vehicles`)
-
-list endpoint accepts filters: `status`, `transmission`, `fuelType`, `minYear`, `maxYear`, `search`, `sortBy`. Responses include per-vehicle `stats` (total/completed/scheduled lessons, `maintenanceDue`).
-
-Routes:
-- `GET /vehicles`: list.
-- `POST /vehicles`: create vehicle. Required: `plateNumber`, `model`, `year`, `fuelType`, `transmission`; optional fields include `vin`, `mileage`, `features`, etc.
-- `GET /vehicles/:id`, `PUT /:id`, `DELETE /:id` – standard CRUD. Deletes blocked if vehicle has scheduled lessons.
-- `GET /vehicles/:id/availability?date=2025-05-01` or `?startDate=...&endDate=...` – returns `{ isAvailable, scheduledLessons[] }`.
-- `GET /vehicles/:id/maintenance` – maintenance history and totals.
-- `POST /vehicles/:id/maintenance` – add record `{ type, description, cost, performedBy?, parts?, nextMaintenanceDate?, nextMaintenanceMileage? }`.
-- `PUT /vehicles/:id/maintenance/:maintenanceId` and `DELETE` – manage maintenance records.
-- `PATCH /vehicles/:id/mileage` – body `{ mileage: number }` (must be >= current mileage).
-- `GET /vehicles/stats` – aggregated fleet metrics.
-
-## 7. Lessons (`/lessons`)
-
-- `GET /lessons` – list with pagination and filtering (see controller for additional query params like `status`).
-- `POST /lessons` – requires `{ studentId, instructorId, vehicleId, date, time, duration?, type?, notes? }`. `time` must be `HH:MM`.
-- `GET /lessons/:id`, `PUT /:id`, `DELETE /:id` – manage single lesson.
-- `PUT /lessons/:id/complete` – marks lesson as completed.
-- `POST /lessons/check-availability` – body example:
-  ```json
-  {
-    "studentId": "664...",
-    "instructorId": "662...",
-    "vehicleId": "661...",
-    "date": "2025-05-10",
-    "time": "09:00",
-    "duration": 60
-  }
-  ```
-  Returns availability plus conflicts.
-- `GET /lessons/stats` – metrics (completions, cancellations, etc.).
-- `GET /lessons/calendar?start=2025-05-01&end=2025-05-31` – month view.
-- `POST /lessons/bulk-schedule` – create multiple lessons; pass array of lesson payloads.
-- `GET /lessons/upcoming` – next lessons prioritized by soonest `date`.
-
-## 8. Payments (`/payments`)
-
-- `GET /payments` – supports pagination and filtering by `status`, `method`, `dateRange` (per controller logic).
-- `POST /payments` – `{ studentId, amount, method, status?, dueDate?, reference?, notes? }`. `amount` must be positive.
-- `GET /payments/:id`, `PUT /:id`, `DELETE /:id` – manage payments.
-- `PUT /payments/:id/mark-paid` – convenience endpoint to set status to paid and stamp payment date.
-- `GET /payments/stats` – totals, outstanding amounts, etc.
-- `GET /payments/pending` – only outstanding payments.
-- `GET /payments/student/:studentId` – all payments for a student.
-
-**Add Payment Example**
-```json
-{
-  "studentId": "665...",
-  "amount": 250,
-  "method": "card",
-  "dueDate": "2025-05-20",
-  "notes": "Installment 1"
-}
+```javascript
+const response = await fetch('http://localhost:5000/api/v1/schedule', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  },
+  body: JSON.stringify({
+    candidateId: '64abc123...',
+    instructorId: '64def456...',
+    date: '2025-01-20',
+    time: '10:00',
+    lessonType: 'driving'
+  })
+});
 ```
 
-## 9. Settings (`/settings`)
+---
 
-All settings routes use `router.use(protect)` so every path beneath `/settings` requires auth.
+## 5. Data Types Reference
 
-- `GET /settings` – full snapshot of profile + preferences.
-- `PUT /settings/profile` – update admin profile (name, email, phone, avatar, etc.).
-- Notifications: `GET /settings/notifications`, `PUT /settings/notifications`.
-- Appearance (theme, layout): `GET /settings/appearance`, `PUT /settings/appearance`.
-- Security: `GET /settings/security`, `POST /settings/security/two-factor` (enable/disable), `DELETE /settings/security/sessions/:sessionId` (force logout of a device).
-- Backups: `GET /settings/backups`, `PUT /settings/backups/preferences`, `POST /settings/backups` (create), `POST /settings/backups/:backupId/restore`, `GET /settings/backups/:backupId/download`.
-- System utilities: `GET /settings/system`, `POST /settings/system/clear-cache`, `POST /settings/system/optimize-database`, `POST /settings/system/export-logs`.
+### License Types
+`A1`, `A2`, `B`, `C1`, `C2`, `D`
 
-Expect `{ success: true, data: { ... } }` responses mirroring controller logic. Mutations usually return a confirmation `message` as well.
+### Progress/Lesson/Exam Types
+`highway_code`, `parking`, `driving`
 
-## 10. Dashboard (`/dashboard`)
+### Candidate Status
+`active`, `completed`, `deleted`
 
-- `GET /dashboard/stats` – totals for students, lessons, revenue, etc.
-- `GET /dashboard/activities` – recent actions feed (students added, payments recorded, etc.).
-- `GET /dashboard/charts` – structured data meant for client-side visualizations (arrays ready for recharts/chart.js).
+### Instructor Status
+`active`, `deleted`
 
-## 11. Health & Misc
+### Vehicle Status
+`active`, `maintenance`, `retired`
 
-- `GET /health` – unauthenticated heartbeat `{ success, message, timestamp, environment, uptime }`.
-- `GET /` – root API descriptor (lists endpoints and links to `/api-docs`).
+### Schedule Status
+`scheduled`, `cancelled`, `completed`
 
-## 12. Error Reference
+### Exam Status
+`scheduled`, `passed`, `failed`, `cancelled`
 
-if you face this errors, here is how to handle them:
+### Payment Status
+`pending`, `paid`
 
-| HTTP code | reason                                                          | how to handle                                 |
-|-----------|-----------------------------------------------------------------|-----------------------------------------------|
-| 400       | Validation error (missing field, duplicate email, invalid time) | Show inline error. Message comes from server. |
-| 401       | Missing/invalid token                                           | Redirect to login, refresh token.             |
-| 403       | Forbidden (role check)                                          | Hide UI or show insufficient rights message.  |
-| 404       | Resource not found (invalid ID, deleted entity)                 | Show not-found state.                         |
-| 429       | Rate limited (login/register)                                   | Display retry wait guidance.                  |
-| 500       | Unhandled server error                                          | Retry later or contact support.               |
+---
+
+## 6. Security Features
+
+- **JWT Authentication** - Tokens expire after 7 days
+- **Rate Limiting** - Login endpoint has stricter limits
+- **Helmet** - Security headers enabled
+- **CORS** - Configured for frontend origin
+- **MongoDB Sanitization** - Prevents NoSQL injection
+- **XSS Protection** - Request sanitization enabled
+
+---
+
+## 7. Detailed Documentation
+
+For complete endpoint documentation with examples, see:
+
+- [API Reference](./API_REFERENCE.md)
+- [Auth API](./docs/api/AUTH.md)
+- [Candidates API](./docs/api/CANDIDATES.md)
+- [Instructors API](./docs/api/INSTRUCTORS.md)
+- [Vehicles API](./docs/api/VEHICLES.md)
+- [Schedule API](./docs/api/SCHEDULE.md)
+- [Exams API](./docs/api/EXAMS.md)
+- [Payments API](./docs/api/PAYMENTS.md)
+- [Settings API](./docs/api/SETTINGS.md)
+- [Dashboard API](./docs/api/DASHBOARD.md)
+

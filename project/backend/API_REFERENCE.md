@@ -214,6 +214,52 @@ Authorization: Bearer <token>
 
 ---
 
+## Exams Endpoints
+
+### Get All Exams
+- **GET** `/exams`
+- Protected: Yes
+- Query params: `page`, `limit`, `status`, `examType`, `candidateId`, `instructorId`
+
+### Get Upcoming Exams
+- **GET** `/exams/upcoming`
+- Protected: Yes
+- Query params: `limit`
+
+### Get Candidate Exams
+- **GET** `/exams/candidate/:candidateId`
+- Protected: Yes
+
+### Check Can Take Exam
+- **GET** `/exams/can-take/:candidateId/:examType`
+- Protected: Yes
+- Returns: `{ canTake: boolean, reason?, waitUntil? }`
+
+### Get Single Exam
+- **GET** `/exams/:id`
+- Protected: Yes
+
+### Schedule Exam
+- **POST** `/exams`
+- Protected: Yes
+- Body: `{ candidateId, instructorId, examType, date, time, notes? }`
+- Exam types: `highway_code`, `parking`, `driving`
+
+### Update Exam
+- **PUT** `/exams/:id`
+- Protected: Yes
+
+### Cancel Exam
+- **DELETE** `/exams/:id`
+- Protected: Yes
+
+### Record Exam Result
+- **PUT** `/exams/:id/result`
+- Protected: Yes
+- Body: `{ result, notes? }` (result: 'passed' or 'failed')
+
+---
+
 ## Payments Endpoints
 
 ### Get All Payments
@@ -257,52 +303,6 @@ Authorization: Bearer <token>
 
 ---
 
-## Exams Endpoints
-
-### Get All Exams
-- **GET** `/exams`
-- Protected: Yes
-- Query params: `page`, `limit`, `status`, `examType`, `candidateId`, `instructorId`, `startDate`, `endDate`, `sortBy`
-
-### Get Upcoming Exams
-- **GET** `/exams/upcoming`
-- Protected: Yes
-- Query params: `limit`
-
-### Get Candidate Exams
-- **GET** `/exams/candidate/:candidateId`
-- Protected: Yes
-
-### Check Can Take Exam (15-day rule)
-- **GET** `/exams/can-take/:candidateId/:examType`
-- Protected: Yes
-
-### Get Single Exam
-- **GET** `/exams/:id`
-- Protected: Yes
-
-### Schedule Exam
-- **POST** `/exams`
-- Protected: Yes
-- Body: `{ candidateId, instructorId, examType, date, time, notes? }`
-- Exam types: `highway_code`, `parking`, `driving`
-
-### Update Exam
-- **PUT** `/exams/:id`
-- Protected: Yes
-
-### Record Exam Result
-- **PUT** `/exams/:id/result`
-- Protected: Yes
-- Body: `{ result, notes? }`
-- Result values: `passed`, `failed`
-
-### Cancel Exam
-- **DELETE** `/exams/:id`
-- Protected: Yes
-
----
-
 ## Settings Endpoints
 
 ### Get Settings
@@ -326,39 +326,85 @@ Authorization: Bearer <token>
 
 ---
 
-## Dashboard Endpoint
+## Dashboard Endpoints
 
 ### Get Dashboard Stats
 - **GET** `/dashboard/stats`
 - Protected: Yes
-- Returns:
-  - `totalCandidates`
-  - `totalInstructors`
-  - `totalVehicles`
-  - `pendingPayments` (count and totalAmount)
+- Returns: `{ totalCandidates, totalInstructors, totalVehicles, pendingPayments: { count, totalAmount } }`
 
 ---
 
-## Business Rules
+## Common Response Formats
 
-### Exam 15-Day Waiting Rule
-- A candidate must wait 15 days between exam attempts (after passing or failing)
-- Use `/exams/can-take/:candidateId/:examType` to check eligibility
+### Success Response
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": "Operation completed successfully"
+}
+```
 
-### Vehicle-Instructor Assignment
-- One instructor can only have one assigned vehicle
-- One vehicle can only be assigned to one instructor
+### Paginated Response
+```json
+{
+  "success": true,
+  "count": 10,
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 100,
+    "pages": 10
+  },
+  "data": [ ... ]
+}
+```
 
-### Candidate Progress Flow
-1. `highway_code` → 2. `parking` → 3. `driving`
-- When a candidate passes an exam, their progress automatically advances to the next phase
-- When a candidate passes the `driving` exam, their status becomes `completed`
+### Error Response
+```json
+{
+  "success": false,
+  "error": "Error message here"
+}
+```
 
-### Status Values
-- **Candidate Status**: `active`, `completed`, `deleted`
-- **Instructor Status**: `active`, `deleted`
-- **Vehicle Status**: `active`, `maintenance`, `retired`
-- **Schedule Status**: `scheduled`, `cancelled`, `completed`
-- **Payment Status**: `pending`, `paid`
-- **Exam Status**: `scheduled`, `passed`, `failed`, `cancelled`
+---
+
+## Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad Request |
+| 401 | Unauthorized |
+| 404 | Not Found |
+| 500 | Server Error |
+
+---
+
+## Detailed Documentation
+
+For detailed endpoint documentation, see:
+
+- [Auth API](./docs/api/AUTH.md)
+- [Candidates API](./docs/api/CANDIDATES.md)
+- [Instructors API](./docs/api/INSTRUCTORS.md)
+- [Vehicles API](./docs/api/VEHICLES.md)
+- [Schedule API](./docs/api/SCHEDULE.md)
+- [Exams API](./docs/api/EXAMS.md)
+- [Payments API](./docs/api/PAYMENTS.md)
+- [Settings API](./docs/api/SETTINGS.md)
+- [Dashboard API](./docs/api/DASHBOARD.md)
+
+For model documentation, see:
+
+- [Admin Model](./docs/models/ADMIN.md)
+- [Candidate Model](./docs/models/CANDIDATE.md)
+- [Instructor Model](./docs/models/INSTRUCTOR.md)
+- [Vehicle Model](./docs/models/VEHICLE.md)
+- [Schedule Model](./docs/models/SCHEDULE.md)
+- [Exam Model](./docs/models/EXAM.md)
+- [Payment Model](./docs/models/PAYMENT.md)
 
