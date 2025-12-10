@@ -1,7 +1,7 @@
 // backend/src/middleware/logger.middleware.js
 import morgan from 'morgan';
 import logger from '../config/logger.config.js';
-import config from '../config/env.config.js';
+import { config } from '../config/env.config.js';
 
 // morgan token for response time in milliseconds
 morgan.token('response-time-ms', (req, res) => {

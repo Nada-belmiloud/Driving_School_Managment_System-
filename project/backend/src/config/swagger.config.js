@@ -2,7 +2,7 @@
 
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import config from './env.config.js';
+import { config } from './env.config.js';
 
 const swaggerDefinition = {
     openapi: '3.0.0',
