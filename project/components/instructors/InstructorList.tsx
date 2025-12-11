@@ -1,13 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Search, Trash2, Pencil } from 'lucide-react';
-import { mockInstructors, mockVehicles } from '@/lib/mockData';
-import type { Instructor, Vehicle } from '@/types';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Trash2, Pencil, Loader2 } from 'lucide-react';
+import { instructorsApi, vehiclesApi } from '@/lib/api';
+import { toast } from 'sonner';
+
+interface Instructor {
+  _id: string;
+  id?: string;
+  name: string;
+  phone: string;
+  email: string;
+  vehicleId?: string;
+  workingHours: string;
+  maxStudents: number;
+  currentStudents: number;
+}
+
+interface Vehicle {
+  _id: string;
+  id?: string;
+  brand: string;
+  model: string;
+  licensePlate: string;
+}
 
 export function InstructorsList() {
-  const [instructors, setInstructors] = useState<Instructor[]>(mockInstructors);
-  const [vehicles] = useState<Vehicle[]>(mockVehicles);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -24,6 +45,32 @@ export function InstructorsList() {
     maxStudents: 15,
   });
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [instructorsRes, vehiclesRes] = await Promise.all([
+        instructorsApi.getAll({ limit: 100 }),
+        vehiclesApi.getAll({ limit: 100 })
+      ]);
+
+      if (instructorsRes.success && instructorsRes.data) {
+        setInstructors((instructorsRes.data as { instructors: Instructor[] }).instructors || []);
+      }
+      if (vehiclesRes.success && vehiclesRes.data) {
+        setVehicles((vehiclesRes.data as { vehicles: Vehicle[] }).vehicles || []);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load instructors');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getInitials = (name: string): string =>
     name
       .split(' ')
@@ -33,7 +80,7 @@ export function InstructorsList() {
 
   const getVehicleInfo = (vehicleId?: string): string => {
     if (!vehicleId) return 'N/A';
-    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    const vehicle = vehicles.find((v) => v._id === vehicleId || v.id === vehicleId);
     return vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.licensePlate}` : 'N/A';
   };
 
@@ -54,8 +101,8 @@ export function InstructorsList() {
       phone: instructor.phone,
       email: instructor.email,
       vehicleId: instructor.vehicleId || '',
-      workingHours: instructor.workingHours,
-      maxStudents: instructor.maxStudents,
+      workingHours: instructor.workingHours || '9:00–17:00 (1h lunch at 12:00)',
+      maxStudents: instructor.maxStudents || 15,
     });
     setIsAddModalOpen(true);
   };
@@ -65,34 +112,58 @@ export function InstructorsList() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (instructorToDelete) {
-      setInstructors(instructors.filter((inst) => inst.id !== instructorToDelete.id));
+      try {
+        const result = await instructorsApi.delete(instructorToDelete._id);
+        if (result.success) {
+          toast.success('Instructor deleted successfully');
+          fetchData();
+        } else {
+          toast.error(result.error || 'Failed to delete instructor');
+        }
+      } catch (error) {
+        toast.error('Failed to delete instructor');
+      }
       setIsDeleteModalOpen(false);
       setInstructorToDelete(null);
     }
   };
 
-  const handleAddInstructor = () => {
-    if (!formData.name || !formData.phone || !formData.email || !formData.vehicleId) {
-      alert('Please fill in all required fields');
+  const handleAddInstructor = async () => {
+    if (!formData.name || !formData.phone || !formData.email) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
-    if (isEditMode && editingInstructor) {
-      const updatedInstructor: Instructor = { ...editingInstructor, ...formData };
-      setInstructors(
-        instructors.map((inst) =>
-          inst.id === editingInstructor.id ? updatedInstructor : inst
-        )
-      );
-    } else {
-      const newInstructor: Instructor = {
-        id: String(instructors.length + 1),
-        ...formData,
-        currentStudents: 0,
-      };
-      setInstructors([...instructors, newInstructor]);
+    try {
+      if (isEditMode && editingInstructor) {
+        const result = await instructorsApi.update(editingInstructor._id, formData);
+        if (result.success) {
+          toast.success('Instructor updated successfully');
+          fetchData();
+        } else {
+          toast.error(result.error || 'Failed to update instructor');
+        }
+      } else {
+        const result = await instructorsApi.create({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone
+        });
+        if (result.success) {
+          toast.success('Instructor added successfully');
+          // Assign vehicle if selected
+          if (formData.vehicleId && result.data) {
+            await instructorsApi.assignVehicle((result.data as { _id: string })._id, formData.vehicleId);
+          }
+          fetchData();
+        } else {
+          toast.error(result.error || 'Failed to add instructor');
+        }
+      }
+    } catch (error) {
+      toast.error('An error occurred');
     }
 
     setIsAddModalOpen(false);
@@ -114,6 +185,14 @@ export function InstructorsList() {
     setIsEditMode(false);
     setEditingInstructor(null);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 px-8 py-6">
@@ -152,7 +231,7 @@ export function InstructorsList() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredInstructors.map((inst) => (
           <div
-            key={inst.id}
+            key={inst._id}
             className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition"
           >
             {/* Avatar + Name */}
@@ -248,7 +327,7 @@ export function InstructorsList() {
                   >
                     <option value="">Select a vehicle</option>
                     {vehicles.map((v) => (
-                      <option key={v.id} value={v.id}>
+                      <option key={v._id} value={v._id}>
                         {v.brand} {v.model} ({v.licensePlate})
                       </option>
                     ))}

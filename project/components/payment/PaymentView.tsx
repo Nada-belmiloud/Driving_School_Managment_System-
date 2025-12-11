@@ -1,12 +1,13 @@
 // app/dashboard/payments/page.tsx
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { mockCandidates } from '@/lib/mockData';
+import React, { useState, useMemo, useEffect } from 'react';
+import { candidatesApi, paymentsApi } from '@/lib/api';
 import { formatDZD, getStatusStyle } from '@/components/utils/utility';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CreditCard, DollarSign, TrendingUp, Calendar, User, Wallet, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { CreditCard, DollarSign, TrendingUp, Calendar, User, Wallet, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Reusable Status Card Component
 const StatusCard: React.FC<{
@@ -278,25 +279,54 @@ const getRecentPayments = (candidates: any[]) => {
 
 // Main Payments Page Component
 export default function PaymentsPage() {
-  const [candidates, setCandidates] = useState(mockCandidates);
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const result = await candidatesApi.getAll({ limit: 100 });
+      if (result.success && result.data) {
+        const candidatesData = (result.data as { candidates: any[] }).candidates || [];
+        // Transform data to match expected format
+        const transformedCandidates = candidatesData.map((c: any) => ({
+          ...c,
+          id: c._id,
+          totalFee: c.totalFee || 34000,
+          paidAmount: c.paidAmount || 0,
+          payments: c.payments || []
+        }));
+        setCandidates(transformedCandidates);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load payment data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Calculations
   const totalCollected = useMemo(() => 
-    candidates.reduce((sum: number, c: any) => sum + c.paidAmount, 0), [candidates]
+    candidates.reduce((sum: number, c: any) => sum + (c.paidAmount || 0), 0), [candidates]
   );
   
   const totalOutstanding = useMemo(() => 
-    candidates.reduce((sum: number, c: any) => sum + (c.totalFee - c.paidAmount), 0), [candidates]
+    candidates.reduce((sum: number, c: any) => sum + ((c.totalFee || 34000) - (c.paidAmount || 0)), 0), [candidates]
   );
 
   const totalFeeValue = useMemo(() => 
-    candidates.reduce((sum: number, c: any) => sum + c.totalFee, 0), [candidates]
+    candidates.reduce((sum: number, c: any) => sum + (c.totalFee || 34000), 0), [candidates]
   );
 
   // Table Data
-  const outstandingCandidates = candidates.filter((c: any) => c.paidAmount < c.totalFee);
+  const outstandingCandidates = candidates.filter((c: any) => (c.paidAmount || 0) < (c.totalFee || 34000));
   const recentPayments = getRecentPayments(candidates);
 
   // Handlers
@@ -305,27 +335,24 @@ export default function PaymentsPage() {
     setIsModalOpen(true);
   };
 
-  const handlePaymentAdded = (candidateId: string, amount: number, date: string) => {
-    setCandidates((prevCandidates: any[]) => 
-      prevCandidates.map((candidate: any) => {
-        if (candidate.id === candidateId) {
-          const newPayment = {
-            id: `p${Date.now()}`,
-            amount: amount,
-            date: date,
-            method: 'cash' as const,
-            note: 'New payment recorded',
-          };
-          
-          return {
-            ...candidate,
-            paidAmount: candidate.paidAmount + amount,
-            payments: [...candidate.payments, newPayment],
-          };
-        }
-        return candidate;
-      })
-    );
+  const handlePaymentAdded = async (candidateId: string, amount: number, date: string) => {
+    try {
+      const result = await paymentsApi.create({
+        candidateId,
+        amount,
+        status: 'paid',
+        date
+      });
+
+      if (result.success) {
+        toast.success('Payment added successfully');
+        fetchData(); // Refresh data
+      } else {
+        toast.error(result.error || 'Failed to add payment');
+      }
+    } catch (error) {
+      toast.error('Failed to add payment');
+    }
     setSelectedCandidate(null);
   };
 
@@ -333,6 +360,14 @@ export default function PaymentsPage() {
     setIsModalOpen(false);
     setSelectedCandidate(null);
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-8 bg-gray-50 min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
@@ -420,12 +455,12 @@ export default function PaymentsPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {outstandingCandidates.map((candidate: any) => {
-                const remaining = candidate.totalFee - candidate.paidAmount;
-                const percentage = (candidate.paidAmount / candidate.totalFee) * 100;
+                const remaining = (candidate.totalFee || 34000) - (candidate.paidAmount || 0);
+                const percentage = ((candidate.paidAmount || 0) / (candidate.totalFee || 34000)) * 100;
                 const status = getStatusStyle(percentage);
 
                 return (
-                  <tr key={candidate.id} className="hover:bg-gray-50">
+                  <tr key={candidate._id || candidate.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center gap-2">
                       <User className="text-gray-400" size={16} />
                       {candidate.name}

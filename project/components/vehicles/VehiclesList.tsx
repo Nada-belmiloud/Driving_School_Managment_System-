@@ -1,13 +1,39 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Search, Trash2, Car, X } from 'lucide-react';
-import { mockVehicles, mockInstructors } from '@/lib/mockData';
-import type { Vehicle, MaintenanceLog, Instructor } from '@/types';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Trash2, Car, X, Loader2 } from 'lucide-react';
+import { vehiclesApi, instructorsApi } from '@/lib/api';
+import { toast } from 'sonner';
+
+interface MaintenanceLog {
+  _id?: string;
+  id?: string;
+  date: string;
+  description: string;
+  type?: string;
+  cost?: number;
+}
+
+interface Vehicle {
+  _id: string;
+  id?: string;
+  brand: string;
+  model: string;
+  licensePlate: string;
+  instructorId?: string;
+  maintenanceLogs: MaintenanceLog[];
+}
+
+interface Instructor {
+  _id: string;
+  id?: string;
+  name: string;
+}
 
 export function VehiclesList() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(mockVehicles);
-  const [instructors] = useState<Instructor[]>(mockInstructors);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
   const [isAddMaintenanceModalOpen, setIsAddMaintenanceModalOpen] = useState(false);
@@ -26,9 +52,35 @@ export function VehiclesList() {
     description: ''
   });
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [vehiclesRes, instructorsRes] = await Promise.all([
+        vehiclesApi.getAll({ limit: 100 }),
+        instructorsApi.getAll({ limit: 100 })
+      ]);
+
+      if (vehiclesRes.success && vehiclesRes.data) {
+        setVehicles((vehiclesRes.data as { vehicles: Vehicle[] }).vehicles || []);
+      }
+      if (instructorsRes.success && instructorsRes.data) {
+        setInstructors((instructorsRes.data as { instructors: Instructor[] }).instructors || []);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load vehicles');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getInstructorName = (instructorId?: string): string => {
     if (!instructorId) return 'Unassigned';
-    const instructor = instructors.find(i => i.id === instructorId);
+    const instructor = instructors.find(i => i._id === instructorId || i.id === instructorId);
     return instructor ? instructor.name : 'Unassigned';
   };
 
@@ -43,54 +95,77 @@ export function VehiclesList() {
     );
   });
 
-  const handleAddVehicle = () => {
+  const handleAddVehicle = async () => {
     if (!vehicleFormData.brand || !vehicleFormData.model || !vehicleFormData.licensePlate) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       return;
     }
 
-    const newVehicle: Vehicle = {
-      id: String(vehicles.length + 1),
-      brand: vehicleFormData.brand,
-      model: vehicleFormData.model,
-      licensePlate: vehicleFormData.licensePlate,
-      instructorId: vehicleFormData.instructorId || undefined,
-      maintenanceLogs: []
-    };
+    try {
+      const result = await vehiclesApi.create({
+        brand: vehicleFormData.brand,
+        model: vehicleFormData.model,
+        licensePlate: vehicleFormData.licensePlate
+      });
 
-    setVehicles([...vehicles, newVehicle]);
-    setIsAddVehicleModalOpen(false);
-    setVehicleFormData({ brand: '', model: '', licensePlate: '', instructorId: '' });
-  };
-
-  const handleAddMaintenanceLog = () => {
-    if (!maintenanceFormData.date || !maintenanceFormData.description || !selectedVehicle) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
-    const newLog: MaintenanceLog = {
-      id: `m${Date.now()}`,
-      date: maintenanceFormData.date,
-      description: maintenanceFormData.description
-    };
-
-    const updatedVehicles = vehicles.map(vehicle => {
-      if (vehicle.id === selectedVehicle.id) {
-        return { ...vehicle, maintenanceLogs: [newLog, ...vehicle.maintenanceLogs] };
+      if (result.success) {
+        toast.success('Vehicle added successfully');
+        // Assign instructor if selected
+        if (vehicleFormData.instructorId && result.data) {
+          await vehiclesApi.assignInstructor((result.data as { _id: string })._id, vehicleFormData.instructorId);
+        }
+        fetchData();
+        setIsAddVehicleModalOpen(false);
+        setVehicleFormData({ brand: '', model: '', licensePlate: '', instructorId: '' });
+      } else {
+        toast.error(result.error || 'Failed to add vehicle');
       }
-      return vehicle;
-    });
-
-    setVehicles(updatedVehicles);
-    setIsAddMaintenanceModalOpen(false);
-    setSelectedVehicle(null);
-    setMaintenanceFormData({ date: '', description: '' });
+    } catch (error) {
+      toast.error('Failed to add vehicle');
+    }
   };
 
-  const confirmDeleteVehicle = () => {
+  const handleAddMaintenanceLog = async () => {
+    if (!maintenanceFormData.date || !maintenanceFormData.description || !selectedVehicle) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const result = await vehiclesApi.addMaintenanceLog(selectedVehicle._id, {
+        type: 'general',
+        description: maintenanceFormData.description,
+        cost: 0,
+        date: maintenanceFormData.date
+      });
+
+      if (result.success) {
+        toast.success('Maintenance log added successfully');
+        fetchData();
+        setIsAddMaintenanceModalOpen(false);
+        setSelectedVehicle(null);
+        setMaintenanceFormData({ date: '', description: '' });
+      } else {
+        toast.error(result.error || 'Failed to add maintenance log');
+      }
+    } catch (error) {
+      toast.error('Failed to add maintenance log');
+    }
+  };
+
+  const confirmDeleteVehicle = async () => {
     if (vehicleToDelete) {
-      setVehicles(vehicles.filter(v => v.id !== vehicleToDelete.id));
+      try {
+        const result = await vehiclesApi.delete(vehicleToDelete._id);
+        if (result.success) {
+          toast.success('Vehicle deleted successfully');
+          fetchData();
+        } else {
+          toast.error(result.error || 'Failed to delete vehicle');
+        }
+      } catch (error) {
+        toast.error('Failed to delete vehicle');
+      }
       setVehicleToDelete(null);
       setIsDeleteModalOpen(false);
     }
@@ -106,6 +181,14 @@ export function VehiclesList() {
     setVehicleToDelete(vehicle);
     setIsDeleteModalOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -145,7 +228,7 @@ export function VehiclesList() {
         {/* Vehicles List */}
         <div className="space-y-6">
           {filteredVehicles.map((vehicle) => (
-            <div key={vehicle.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div key={vehicle._id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               {/* Vehicle Header */}
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-start justify-between">
@@ -192,7 +275,7 @@ export function VehiclesList() {
                       <div className="col-span-10">Description</div>
                     </div>
                     {vehicle.maintenanceLogs.map((log) => (
-                      <div key={log.id} className="grid grid-cols-12 gap-4 text-sm py-2 border-b border-gray-100 last:border-0">
+                      <div key={log._id || log.id} className="grid grid-cols-12 gap-4 text-sm py-2 border-b border-gray-100 last:border-0">
                         <div className="col-span-2 text-gray-900">{log.date}</div>
                         <div className="col-span-10 text-gray-600">{log.description}</div>
                       </div>
@@ -265,7 +348,7 @@ export function VehiclesList() {
                     className="w-full border border-gray-300 rounded-md p-2 bg-white"
                   >
                     <option value="">Unassigned</option>
-                    {instructors.map((ins) => <option key={ins.id} value={ins.id}>{ins.name}</option>)}
+                    {instructors.map((ins) => <option key={ins._id} value={ins._id}>{ins.name}</option>)}
                   </select>
                 </div>
               </form>

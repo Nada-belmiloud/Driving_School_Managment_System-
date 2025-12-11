@@ -8,12 +8,17 @@ import { Label } from '../ui/label';
 import { Separator } from '../ui/separator';
 import { Mail, Lock, User, Shield } from 'lucide-react';
 import { toast } from 'sonner';
+import { authApi } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export function SettingsView() {
+  const { user } = useAuth();
+
   const [emailForm, setEmailForm] = useState({
-    currentEmail: 'ahmed.benali@ecole.dz',
+    currentEmail: user?.email || 'admin@drivingschool.com',
     newEmail: '',
-    confirmEmail: ''
+    confirmEmail: '',
+    password: ''
   });
 
   const [passwordForm, setPasswordForm] = useState({
@@ -22,9 +27,9 @@ export function SettingsView() {
     confirmPassword: ''
   });
 
-  
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleEmailUpdate = (e: React.FormEvent) => {
+  const handleEmailUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (emailForm.newEmail !== emailForm.confirmEmail) {
@@ -32,16 +37,33 @@ export function SettingsView() {
       return;
     }
 
-    // Simulate API call
-    toast.success('Email updated successfully!');
-    setEmailForm({
-      currentEmail: emailForm.newEmail,
-      newEmail: '',
-      confirmEmail: ''
-    });
+    if (!emailForm.password) {
+      toast.error('Please enter your current password to confirm');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await authApi.updateEmail(emailForm.newEmail, emailForm.password);
+      if (result.success) {
+        toast.success('Email updated successfully!');
+        setEmailForm({
+          currentEmail: emailForm.newEmail,
+          newEmail: '',
+          confirmEmail: '',
+          password: ''
+        });
+      } else {
+        toast.error(result.error || 'Failed to update email');
+      }
+    } catch (error) {
+      toast.error('Failed to update email');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handlePasswordUpdate = (e: React.FormEvent) => {
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -54,13 +76,24 @@ export function SettingsView() {
       return;
     }
 
-    // Simulate API call
-    toast.success('Password updated successfully!');
-    setPasswordForm({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
+    setIsLoading(true);
+    try {
+      const result = await authApi.updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      if (result.success) {
+        toast.success('Password updated successfully!');
+        setPasswordForm({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+      } else {
+        toast.error(result.error || 'Failed to update password');
+      }
+    } catch (error) {
+      toast.error('Failed to update password');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleProfileUpdate = (e: React.FormEvent) => {
@@ -128,9 +161,21 @@ export function SettingsView() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="emailPassword">Current Password (to confirm)</Label>
+              <Input
+                id="emailPassword"
+                type="password"
+                placeholder="Enter your current password"
+                value={emailForm.password}
+                onChange={(e) => setEmailForm({ ...emailForm, password: e.target.value })}
+                required
+              />
+            </div>
+
             <div className="flex justify-end">
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                Update Email
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                {isLoading ? 'Updating...' : 'Update Email'}
               </Button>
             </div>
           </form>
@@ -188,8 +233,8 @@ export function SettingsView() {
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                Update Password
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                {isLoading ? 'Updating...' : 'Update Password'}
               </Button>
             </div>
           </form>

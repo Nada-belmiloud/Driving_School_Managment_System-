@@ -4,6 +4,11 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
+// Log the API URL for debugging
+if (typeof window !== 'undefined') {
+  console.log('API_BASE_URL:', API_BASE_URL);
+}
+
 // Helper function to get auth headers
 const getAuthHeaders = (): HeadersInit => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -19,7 +24,10 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log('Making API request to:', url);
+
+    const response = await fetch(url, {
       ...options,
       headers: {
         ...getAuthHeaders(),
@@ -27,9 +35,12 @@ async function apiRequest<T>(
       },
     });
 
+    console.log('API response status:', response.status);
     const result = await response.json();
+    console.log('API response body:', result);
     return result;
   } catch (error) {
+    console.error('API request error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An error occurred',
