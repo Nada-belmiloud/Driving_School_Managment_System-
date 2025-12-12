@@ -1,7 +1,9 @@
 // backend/src/controllers/auth.controller.js
 import Admin from "../models/admin.model.js";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { asyncHandler, AppError } from "../middleware/error.middleware.js";
+import { sendPasswordResetEmail } from "../utils/email.js";
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -165,6 +167,102 @@ export const logoutAdmin = asyncHandler(async (req, res, next) => {
     res.status(200).json({
         success: true,
         message: 'Logged out successfully'
+    });
+});
+
+// @desc    Forgot password - send reset email
+// @route   POST /api/v1/auth/forgot-password
+// @access  Public
+export const forgotPassword = asyncHandler(async (req, res, next) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return next(new AppError('Please provide an email address', 400));
+    }
+
+    // Find admin by email
+    const admin = await Admin.findOne({ email: email.toLowerCase().trim() });
+
+    // Always return success to prevent email enumeration attacks
+    if (!admin) {
+        return res.status(200).json({
+            success: true,
+            message: 'If an account exists with this email, you will receive password reset instructions.'
+        });
+    }
+
+    // Generate reset token
+    const resetToken = admin.createPasswordResetToken();
+    await admin.save({ validateBeforeSave: false });
+
+    // Create reset URL
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    try {
+        await sendPasswordResetEmail(admin.email, resetUrl, admin.name);
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset email sent successfully'
+        });
+    } catch (error) {
+        // If email fails, clear the reset token
+        admin.passwordResetToken = undefined;
+        admin.passwordResetExpires = undefined;
+        await admin.save({ validateBeforeSave: false });
+
+        console.error('Email sending error:', error);
+        return next(new AppError('There was an error sending the email. Please try again later.', 500));
+    }
+});
+
+// @desc    Reset password with token
+// @route   POST /api/v1/auth/reset-password
+// @access  Public
+export const resetPassword = asyncHandler(async (req, res, next) => {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+        return next(new AppError('Please provide token and new password', 400));
+    }
+
+    if (password.length < 6) {
+        return next(new AppError('Password must be at least 6 characters', 400));
+    }
+
+    // Hash the token from the URL to compare with stored hash
+    const hashedToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+    // Find admin with valid token that hasn't expired
+    const admin = await Admin.findOne({
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { $gt: Date.now() }
+    }).select('+passwordResetToken +passwordResetExpires');
+
+    if (!admin) {
+        return next(new AppError('Token is invalid or has expired', 400));
+    }
+
+    // Update password and clear reset token
+    admin.password = password;
+    admin.passwordResetToken = undefined;
+    admin.passwordResetExpires = undefined;
+    admin.lastPasswordChange = new Date();
+    await admin.save();
+
+    // Generate new JWT token
+    const jwtToken = generateToken(admin._id);
+
+    res.status(200).json({
+        success: true,
+        message: 'Password reset successful',
+        data: {
+            token: jwtToken
+        }
     });
 });
 

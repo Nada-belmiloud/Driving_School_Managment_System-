@@ -92,6 +92,18 @@ export const authApi = {
       method: 'PUT',
       body: JSON.stringify({ name }),
     }),
+
+  forgotPassword: (email: string) =>
+    apiRequest('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, password: string) =>
+    apiRequest<{ token: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    }),
 };
 
 // ==================== DASHBOARD API ====================
