@@ -36,7 +36,8 @@ interface CandidateData {
   dateOfBirth?: string;
   phone: string;
   email: string;
-  licenseCategory: string;
+  licenseType: string;
+  licenseCategory?: string; // Alias for backwards compatibility
   documents: Array<{ name: string; checked: boolean }>;
   phases: Array<{ phase: string; status: string; sessionsCompleted: number; sessionsPlan: number }>;
   totalFee: number;
@@ -107,7 +108,10 @@ export function CandidatesList() {
         email: formData.email,
         phone: `+213 ${formData.phone}`,
         licenseType: formData.licenseCategory,
-        dateOfBirth: formData.dateOfBirth
+        dateOfBirth: formData.dateOfBirth,
+        documents: formData.documents,
+        paidAmount: formData.firstPayment || 0,
+        totalFee: formData.totalFee
       });
 
       if (result.success) {
@@ -266,7 +270,7 @@ export function CandidatesList() {
                     </td>
 
                     <td className="py-4">
-                      <Badge variant="secondary">{c.licenseCategory}</Badge>
+                      <Badge variant="secondary">{c.licenseType || c.licenseCategory}</Badge>
                     </td>
 
                     <td className="py-4 text-gray-700">

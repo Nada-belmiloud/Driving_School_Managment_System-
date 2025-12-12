@@ -85,7 +85,44 @@ export const addCandidate = asyncHandler(async (req, res, next) => {
         return next(new AppError('Candidate with this email already exists', 400));
     }
 
-    const candidate = await Candidate.create(req.body);
+    // Default required documents
+    const defaultDocuments = [
+        { name: 'Birth certificate', checked: false },
+        { name: 'Residence certificate', checked: false },
+        { name: '6 photos', checked: false },
+        { name: 'Medical certificate', checked: false },
+        { name: 'National ID copy', checked: false },
+        { name: 'Parental authorization (if under 19)', checked: false }
+    ];
+
+    // Default phases
+    const defaultPhases = [
+        { phase: 'highway_code', status: 'in_progress', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+        { phase: 'parking', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+        { phase: 'driving', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 }
+    ];
+
+    // If there's an initial payment, create a payment record
+    const initialPayments = [];
+    if (req.body.paidAmount && req.body.paidAmount > 0) {
+        initialPayments.push({
+            id: `payment-${Date.now()}`,
+            amount: req.body.paidAmount,
+            date: new Date().toISOString().split('T')[0],
+            note: 'Initial payment at registration'
+        });
+    }
+
+    const candidateData = {
+        ...req.body,
+        documents: req.body.documents || defaultDocuments,
+        phases: req.body.phases || defaultPhases,
+        payments: req.body.payments || initialPayments,
+        examHistory: req.body.examHistory || [],
+        sessionHistory: req.body.sessionHistory || []
+    };
+
+    const candidate = await Candidate.create(candidateData);
 
     res.status(201).json({
         success: true,
