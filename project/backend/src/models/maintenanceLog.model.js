@@ -14,7 +14,7 @@ const maintenanceLogSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['oil-change', 'tire-replacement', 'brake-service', 'inspection', 'repair', 'other'],
+        enum: ['oil-change', 'tire-replacement', 'brake-service', 'inspection', 'repair', 'general', 'other'],
         required: [true, 'Maintenance type is required']
     },
     description: {

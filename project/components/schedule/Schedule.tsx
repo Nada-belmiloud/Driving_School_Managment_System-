@@ -889,10 +889,18 @@ function TrainingSessionsView({
           <div className="p-8 text-center text-gray-500">No sessions found</div>
         ) : (
           filteredSessions.map((session) => {
-            const candidateId = typeof session.candidateId === 'object' ? session.candidateId._id : session.candidateId;
-            const candidateName = typeof session.candidateId === 'object' ? session.candidateId.name : getCandidateInfo(candidateId)?.name;
-            const instructorId = typeof session.instructorId === 'object' ? session.instructorId._id : session.instructorId;
-            const instructorName = typeof session.instructorId === 'object' ? session.instructorId.name : getInstructorName(instructorId);
+            const candidateId = typeof session.candidateId === 'object' && session.candidateId !== null
+              ? session.candidateId._id
+              : session.candidateId;
+            const candidateName = typeof session.candidateId === 'object' && session.candidateId !== null
+              ? session.candidateId.name
+              : getCandidateInfo(candidateId)?.name;
+            const instructorId = typeof session.instructorId === 'object' && session.instructorId !== null
+              ? session.instructorId._id
+              : session.instructorId;
+            const instructorName = typeof session.instructorId === 'object' && session.instructorId !== null
+              ? session.instructorId.name
+              : getInstructorName(instructorId);
             const phase = session.lessonType || session.phase;
             return (
               <div key={session._id || session.id} className="p-4 hover:bg-gray-50">
