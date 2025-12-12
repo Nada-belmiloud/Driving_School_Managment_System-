@@ -5,7 +5,7 @@ import { Users, GraduationCap, Car, CreditCard, AlertTriangle, Calendar, X, Load
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { dashboardApi, candidatesApi, instructorsApi, vehiclesApi, scheduleApi } from '@/lib/api';
+import { dashboardApi, candidatesApi, instructorsApi, vehiclesApi, scheduleApi, examsApi } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 interface DashboardProps {
@@ -57,6 +57,16 @@ interface Session {
   status: string;
 }
 
+interface ScheduledExam {
+  _id: string;
+  candidateId: string | { _id: string; name: string };
+  instructorId?: string | { _id: string; name: string };
+  examType: string;
+  date: string;
+  time: string;
+  status: string;
+}
+
 // Helper function to get the most recent Thursday
 function getMostRecentThursday(): Date {
   const today = new Date();
@@ -76,18 +86,20 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [upcomingSessions, setUpcomingSessions] = useState<Session[]>([]);
+  const [scheduledExams, setScheduledExams] = useState<ScheduledExam[]>([]);
   const { user } = useAuth();
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       setIsLoading(true);
       try {
-        const [statsRes, candidatesRes, vehiclesRes, instructorsRes, sessionsRes] = await Promise.all([
+        const [statsRes, candidatesRes, vehiclesRes, instructorsRes, sessionsRes, examsRes] = await Promise.all([
           dashboardApi.getStats(),
           candidatesApi.getAll({ limit: 100 }),
           vehiclesApi.getAll({ limit: 100 }),
           instructorsApi.getAll({ limit: 100 }),
-          scheduleApi.getUpcoming(5)
+          scheduleApi.getUpcoming(5),
+          examsApi.getUpcoming(10)
         ]);
 
         if (statsRes.success && statsRes.data) {
@@ -121,6 +133,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             : (sessionsRes.data as { sessions?: Session[] }).sessions || [];
           setUpcomingSessions(sessionsData as Session[]);
         }
+        if (examsRes.success && examsRes.data) {
+          // Handle both array and object response formats
+          const examsData = Array.isArray(examsRes.data)
+            ? examsRes.data
+            : (examsRes.data as { exams?: ScheduledExam[] }).exams || [];
+          setScheduledExams(examsData as ScheduledExam[]);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -131,10 +150,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     fetchDashboardData();
   }, []);
 
-  const upcomingExams = candidates.filter(c => {
-    const currentPhase = c.phases?.find(p => p.status === 'in_progress');
-    return currentPhase && currentPhase.sessionsCompleted >= currentPhase.sessionsPlan * 0.8;
-  });
+  // Use actual scheduled exams from the API
+  const upcomingExams = scheduledExams.filter(e => e.status === 'scheduled');
 
   // Get weekly maintenance reminders (each Thursday)
   const mostRecentThursday = getMostRecentThursday();
@@ -247,19 +264,24 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             {upcomingExams.length === 0 ? (
               <p className="text-sm text-gray-500">No exams scheduled</p>
             ) : (
-              upcomingExams.map(candidate => {
-                const phase = candidate.phases?.find(p => p.status === 'in_progress');
+              upcomingExams.map(exam => {
+                const candidateName = exam.candidateId && typeof exam.candidateId === 'object'
+                  ? exam.candidateId.name
+                  : 'Unknown Candidate';
+                const examDate = exam.date
+                  ? new Date(exam.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : 'N/A';
+                const phaseLabel = exam.examType === 'highway_code' ? 'Highway Code' :
+                                   exam.examType === 'parking' ? 'Parking' : 'Driving';
                 return (
-                  <div key={candidate._id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                  <div key={exam._id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                     <div>
-                      <div className="text-gray-900">{candidate.name}</div>
+                      <div className="text-gray-900">{candidateName}</div>
                       <p className="text-sm text-gray-600">
-                        {phase?.phase === 'highway_code' ? 'Highway Code' : 
-                         phase?.phase === 'parking' ? 'Parking' : 'Driving'} - 
-                        {phase?.sessionsCompleted}/{phase?.sessionsPlan} sessions
+                        {phaseLabel} Exam - {examDate} at {exam.time}
                       </p>
                     </div>
-                    <Badge variant="outline">Ready</Badge>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Scheduled</Badge>
                   </div>
                 );
               })

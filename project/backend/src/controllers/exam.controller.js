@@ -111,8 +111,8 @@ export const scheduleExam = asyncHandler(async (req, res, next) => {
         return next(new AppError('Cannot schedule exam with deleted instructor', 400));
     }
 
-    // Check 15-day waiting rule
-    const canTakeResult = await Exam.canTakeExam(candidateId, examType);
+    // Check 15-day waiting rule - pass the scheduled date to check against
+    const canTakeResult = await Exam.canTakeExam(candidateId, examType, date);
     if (!canTakeResult.canTake) {
         return next(new AppError(canTakeResult.reason, 400));
     }
@@ -241,23 +241,64 @@ export const recordExamResult = asyncHandler(async (req, res, next) => {
     }
     await exam.save();
 
-    // If passed, update candidate progress to next phase
-    if (result === 'passed') {
-        const candidate = await Candidate.findById(exam.candidateId);
-        if (candidate) {
-            const progressOrder = ['highway_code', 'parking', 'driving'];
-            const currentIndex = progressOrder.indexOf(exam.examType);
+    // Update candidate's phases and progress
+    const candidate = await Candidate.findById(exam.candidateId);
+    if (candidate) {
+        const progressOrder = ['highway_code', 'parking', 'driving'];
+        const currentIndex = progressOrder.indexOf(exam.examType);
 
-            // If this is the last phase (driving), mark candidate as completed
-            if (currentIndex === progressOrder.length - 1) {
-                candidate.status = 'completed';
-            } else if (currentIndex < progressOrder.length - 1) {
-                // Move to next phase
-                candidate.progress = progressOrder[currentIndex + 1];
-            }
-
-            await candidate.save();
+        // Initialize phases if not present
+        if (!candidate.phases || candidate.phases.length === 0) {
+            candidate.phases = [
+                { phase: 'highway_code', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+                { phase: 'parking', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+                { phase: 'driving', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 }
+            ];
         }
+
+        // Find the phase matching the exam type
+        const phaseIndex = candidate.phases.findIndex(p => p.phase === exam.examType);
+
+        if (phaseIndex !== -1) {
+            // Update exam attempts
+            candidate.phases[phaseIndex].examAttempts = (candidate.phases[phaseIndex].examAttempts || 0) + 1;
+            candidate.phases[phaseIndex].lastExamDate = new Date().toISOString().split('T')[0];
+
+            if (result === 'passed') {
+                candidate.phases[phaseIndex].examPassed = true;
+                candidate.phases[phaseIndex].status = 'completed';
+
+                // If this is the last phase (driving), mark candidate as completed
+                if (currentIndex === progressOrder.length - 1) {
+                    candidate.status = 'completed';
+                } else if (currentIndex < progressOrder.length - 1) {
+                    // Move to next phase and mark it as in_progress
+                    candidate.progress = progressOrder[currentIndex + 1];
+                    const nextPhaseIndex = candidate.phases.findIndex(p => p.phase === progressOrder[currentIndex + 1]);
+                    if (nextPhaseIndex !== -1 && candidate.phases[nextPhaseIndex].status === 'not_started') {
+                        candidate.phases[nextPhaseIndex].status = 'in_progress';
+                    }
+                }
+            } else {
+                // Failed - keep phase status as is, exam can be retried after 15 days
+                candidate.phases[phaseIndex].examPassed = false;
+            }
+        }
+
+        // Add to exam history
+        if (!candidate.examHistory) {
+            candidate.examHistory = [];
+        }
+        candidate.examHistory.push({
+            id: exam._id.toString(),
+            phase: exam.examType,
+            date: new Date().toISOString().split('T')[0],
+            attemptNumber: candidate.phases[phaseIndex]?.examAttempts || 1,
+            passed: result === 'passed',
+            notes: notes || ''
+        });
+
+        await candidate.save();
     }
 
     await exam.populate([

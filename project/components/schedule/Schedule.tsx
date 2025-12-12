@@ -887,10 +887,16 @@ function ExamForm({
 
   const currentPhaseLabel = phaseLabels[examPhase] || 'N/A';
 
+  // Check if an exam is already scheduled for this phase
+  const currentPhaseStatus = examPhase === 'highway_code' ? highwayCodeStatus :
+                             examPhase === 'parking' ? parkingStatus : drivingStatus;
+  const isExamAlreadyScheduled = currentPhaseStatus?.hasScheduledExam || false;
+  const isPhaseCompleted = currentPhaseStatus?.results === 'Passed';
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCandidateId) return;
-    
+    if (!selectedCandidateId || isExamAlreadyScheduled || isPhaseCompleted) return;
+
     onSubmit({ candidateId: selectedCandidateId, phase: examPhase, date, time });
   };
 
@@ -998,6 +1004,18 @@ function ExamForm({
               </div>
           </div>
 
+          {/* Warning message if exam already scheduled or phase completed */}
+          {(isExamAlreadyScheduled || isPhaseCompleted) && (
+            <div className={`p-3 rounded-lg ${isPhaseCompleted ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+              <p className={`text-sm ${isPhaseCompleted ? 'text-green-800' : 'text-yellow-800'}`}>
+                {isPhaseCompleted
+                  ? `✓ ${currentPhaseLabel} exam has already been passed.`
+                  : `⚠ An exam for ${currentPhaseLabel} is already scheduled. Please wait for the exam result or cancel the existing exam first.`
+                }
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-4 border-t">
               <button
                   type="button"
@@ -1008,7 +1026,12 @@ function ExamForm({
               </button>
               <button
                   type="submit"
-                  className="px-25 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  disabled={isExamAlreadyScheduled || isPhaseCompleted}
+                  className={`px-25 py-3 rounded-lg font-medium ${
+                    isExamAlreadyScheduled || isPhaseCompleted
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
               >
                   Schedule Exam
               </button>
@@ -1265,7 +1288,9 @@ function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo, o
                       <div className="font-medium text-gray-900">
                         {candidateName || "Unknown Candidate"} - {phaseLabels[e.examType as Phase]}
                       </div>
-                      <div className="text-sm text-gray-600">{e.date} {e.time}</div>
+                      <div className="text-sm text-gray-600">
+                        {e.date ? new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'} at {e.time}
+                      </div>
                     </div>
                     <span
                       className={`px-2 py-1 ${
@@ -1273,12 +1298,41 @@ function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo, o
                           ? "bg-green-100 text-green-700"
                           : e.status === "failed"
                           ? "bg-red-100 text-red-700"
+                          : e.status === "cancelled"
+                          ? "bg-gray-100 text-gray-700"
                           : "bg-orange-100 text-orange-700"
                       } text-xs rounded-full`}
                     >
-                      {e.status ?? "Scheduled"}
+                      {e.status === "passed" ? "Passed" :
+                       e.status === "failed" ? "Failed" :
+                       e.status === "cancelled" ? "Cancelled" : "Scheduled"}
                     </span>
                   </div>
+
+                  {/* Action buttons for scheduled exams */}
+                  {e.status === "scheduled" && (
+                    <div className="flex gap-2 mt-3 pt-3 border-t">
+                      <button
+                        onClick={() => onRecordResult(e._id || e.id || '', 'passed')}
+                        className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 font-medium"
+                      >
+                        ✓ Passed
+                      </button>
+                      <button
+                        onClick={() => onRecordResult(e._id || e.id || '', 'failed')}
+                        className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-medium"
+                      >
+                        ✗ Failed
+                      </button>
+                      <button
+                        onClick={() => onCancelExam(e._id || e.id || '')}
+                        className="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300"
+                        title="Cancel exam"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
