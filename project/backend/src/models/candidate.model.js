@@ -20,7 +20,7 @@ const candidateSchema = new mongoose.Schema({
     phone: {
         type: String,
         required: [true, 'Phone number is required'],
-        match: [/^[0-9]{10,15}$/, 'Please provide a valid phone number']
+        match: [/^(\+?\d{1,4}[\s-]?)?\d{9,15}$/, 'Please provide a valid phone number']
     },
     address: {
         type: String,
@@ -79,6 +79,60 @@ const candidateSchema = new mongoose.Schema({
         amount: Number,
         date: String,
         note: String
+    }],
+    documents: [{
+        name: String,
+        checked: {
+            type: Boolean,
+            default: false
+        }
+    }],
+    phases: [{
+        phase: {
+            type: String,
+            enum: ['highway_code', 'parking', 'driving']
+        },
+        status: {
+            type: String,
+            enum: ['not_started', 'in_progress', 'completed', 'failed'],
+            default: 'not_started'
+        },
+        sessionsCompleted: {
+            type: Number,
+            default: 0
+        },
+        sessionsPlan: {
+            type: Number,
+            default: 10
+        },
+        examPassed: {
+            type: Boolean,
+            default: false
+        },
+        examAttempts: {
+            type: Number,
+            default: 0
+        },
+        lastExamDate: String,
+        examDate: String
+    }],
+    examHistory: [{
+        id: String,
+        phase: String,
+        date: String,
+        attemptNumber: Number,
+        passed: Boolean,
+        notes: String
+    }],
+    sessionHistory: [{
+        id: String,
+        phase: String,
+        date: String,
+        time: String,
+        status: {
+            type: String,
+            enum: ['scheduled', 'completed', 'cancelled']
+        }
     }]
 }, {
     timestamps: true

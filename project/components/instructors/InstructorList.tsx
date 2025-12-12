@@ -12,6 +12,7 @@ interface Instructor {
   phone: string;
   email: string;
   vehicleId?: string;
+  assignedVehicle?: string | { _id: string; brand: string; model: string; licensePlate: string };
   workingHours: string;
   maxStudents: number;
   currentStudents: number;
@@ -86,7 +87,18 @@ export function InstructorsList() {
       .join('')
       .toUpperCase();
 
-  const getVehicleInfo = (vehicleId?: string): string => {
+  const getVehicleInfo = (instructor: Instructor): string => {
+    // Handle populated assignedVehicle object
+    if (instructor.assignedVehicle && typeof instructor.assignedVehicle === 'object') {
+      const v = instructor.assignedVehicle;
+      return `${v.brand} ${v.model} - ${v.licensePlate}`;
+    }
+
+    // Handle assignedVehicle as ID string
+    const vehicleId = typeof instructor.assignedVehicle === 'string'
+      ? instructor.assignedVehicle
+      : instructor.vehicleId;
+
     if (!vehicleId) return 'N/A';
     const vehicle = vehicles.find((v) => v._id === vehicleId || v.id === vehicleId);
     return vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.licensePlate}` : 'N/A';
@@ -104,11 +116,24 @@ export function InstructorsList() {
   const handleEdit = (instructor: Instructor) => {
     setEditingInstructor(instructor);
     setIsEditMode(true);
+
+    // Extract vehicle ID from assignedVehicle (could be string ID or populated object)
+    let vehicleIdValue = '';
+    if (instructor.assignedVehicle) {
+      if (typeof instructor.assignedVehicle === 'object') {
+        vehicleIdValue = instructor.assignedVehicle._id;
+      } else {
+        vehicleIdValue = instructor.assignedVehicle;
+      }
+    } else if (instructor.vehicleId) {
+      vehicleIdValue = instructor.vehicleId;
+    }
+
     setFormData({
       name: instructor.name,
       phone: instructor.phone,
       email: instructor.email,
-      vehicleId: instructor.vehicleId || '',
+      vehicleId: vehicleIdValue,
       workingHours: instructor.workingHours || '9:00–17:00 (1h lunch at 12:00)',
       maxStudents: instructor.maxStudents || 15,
     });
@@ -146,8 +171,18 @@ export function InstructorsList() {
 
     try {
       if (isEditMode && editingInstructor) {
-        const result = await instructorsApi.update(editingInstructor._id, formData);
+        // Update instructor basic info (exclude vehicleId as it's handled separately)
+        const { vehicleId, ...updateData } = formData;
+        const result = await instructorsApi.update(editingInstructor._id, updateData);
         if (result.success) {
+          // Handle vehicle assignment separately
+          const currentVehicleId = typeof editingInstructor.assignedVehicle === 'object'
+            ? editingInstructor.assignedVehicle?._id
+            : editingInstructor.assignedVehicle || editingInstructor.vehicleId;
+
+          if (vehicleId !== currentVehicleId) {
+            await instructorsApi.assignVehicle(editingInstructor._id, vehicleId || null);
+          }
           toast.success('Instructor updated successfully');
           fetchData();
         } else {
@@ -261,7 +296,7 @@ export function InstructorsList() {
               </p>
 
               <p>
-                <span className="font-medium">Vehicle:</span> {getVehicleInfo(inst.vehicleId)}
+                <span className="font-medium">Vehicle:</span> {getVehicleInfo(inst)}
               </p>
             </div>
 
