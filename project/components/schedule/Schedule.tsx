@@ -204,33 +204,63 @@ export function ScheduleComponent() {
     });
 
     return phases.map(phase => {
-        // Get exam info for this phase
+        // Get exam info for this phase from exams state
         const phaseExams = candidateExams.filter(e => e.examType === phase.phase);
         const passedExam = phaseExams.find(e => e.status === 'passed');
-        const lastExam = phaseExams.length > 0 ? phaseExams[phaseExams.length - 1] : null;
+        const failedExams = phaseExams.filter(e => e.status === 'failed');
+        const scheduledExam = phaseExams.find(e => e.status === 'scheduled');
+
+        // Get the last completed exam (passed or failed, not scheduled)
+        const completedExams = phaseExams.filter(e => e.status === 'passed' || e.status === 'failed');
+        const lastCompletedExam = completedExams.length > 0 ? completedExams[completedExams.length - 1] : null;
 
         // Use actual session count from sessions state, capped at sessionsPlan (10)
         const rawSessionsCompleted = sessionCounts[phase.phase] || phase.sessionsCompleted || 0;
         const sessionsPlan = phase.sessionsPlan || 10;
         const actualSessionsCompleted = Math.min(rawSessionsCompleted, sessionsPlan);
 
-        // Determine exam results
-        const examPassed = passedExam ? true : phase.examPassed;
-        const examDate = lastExam?.date || phase.examDate || phase.lastExamDate;
-        const examAttempts = phaseExams.length > 0 ? phaseExams.length : phase.examAttempts;
+        // Determine exam results - only from actual completed exams
+        const examPassed = passedExam ? true : (phase.examPassed || false);
 
-        // Determine 15-day status
-        const lastExamDateObj = examDate ? new Date(examDate) : null;
+        // Last exam date should be from completed exams only, formatted nicely
+        const lastExamDateRaw = lastCompletedExam?.date || (phase.examPassed ? phase.examDate : null);
+        const lastExamDateFormatted = lastExamDateRaw
+          ? new Date(lastExamDateRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+          : 'N/A';
+
+        // Exam attempts = number of completed exams (passed or failed)
+        const examAttempts = completedExams.length > 0 ? completedExams.length : (phase.examAttempts || 0);
+
+        // Determine result based on actual exam status
+        let examResult = 'N/A';
+        if (examPassed) {
+            examResult = 'Passed';
+        } else if (failedExams.length > 0 || (examAttempts > 0 && !examPassed)) {
+            examResult = 'Failed';
+        } else if (scheduledExam) {
+            examResult = 'Scheduled';
+        }
+
+        // Determine status based on exam results and 15-day waiting rule
         let waitingStatus = 'N/A';
-        if (lastExamDateObj) {
+        const lastExamDateObj = lastCompletedExam?.date ? new Date(lastCompletedExam.date) :
+                                (phase.examDate ? new Date(phase.examDate) : null);
+
+        if (examPassed) {
+            waitingStatus = 'Completed';
+        } else if (lastExamDateObj && !examPassed) {
+            // Check 15-day waiting period after failed exam
             const fifteenDaysLater = new Date(lastExamDateObj);
             fifteenDaysLater.setDate(lastExamDateObj.getDate() + 15);
             if (new Date() < fifteenDaysLater) {
                 const remainingDays = Math.ceil((fifteenDaysLater.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
                 waitingStatus = `Waiting (${remainingDays} days)`;
             } else {
-                waitingStatus = 'Ready';
+                waitingStatus = 'Ready to retry';
             }
+        } else if (scheduledExam) {
+            const scheduledDate = new Date(scheduledExam.date);
+            waitingStatus = `Exam on ${scheduledDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
         } else if (actualSessionsCompleted >= sessionsPlan) {
             waitingStatus = 'Ready for exam';
         } else if (actualSessionsCompleted > 0) {
@@ -239,7 +269,9 @@ export function ScheduleComponent() {
 
         // Determine phase status
         let phaseStatus = phase.status;
-        if (actualSessionsCompleted >= sessionsPlan && !examPassed) {
+        if (examPassed) {
+            phaseStatus = 'completed';
+        } else if (actualSessionsCompleted >= sessionsPlan) {
             phaseStatus = 'completed'; // All sessions done, ready for exam
         } else if (actualSessionsCompleted > 0 && phaseStatus === 'not_started') {
             phaseStatus = 'in_progress';
@@ -247,8 +279,8 @@ export function ScheduleComponent() {
 
         return {
             phase: phaseLabels[phase.phase],
-            lastExamDate: examDate || 'N/A',
-            results: examPassed ? 'Passed' : (examDate ? 'Failed' : 'N/A'),
+            lastExamDate: lastExamDateFormatted,
+            results: examResult,
             attempts: examAttempts,
             waitingStatus: waitingStatus,
             currentPhaseStatus: phaseStatus,
@@ -835,6 +867,7 @@ function ExamForm({
                                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                         history.results === 'Passed' ? 'bg-green-100 text-green-800' :
                                         history.results === 'Failed' ? 'bg-red-100 text-red-800' :
+                                        history.results === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
                                         'bg-gray-100 text-gray-600'
                                     }`}>
                                         {history.results}
