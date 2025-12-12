@@ -244,6 +244,11 @@ export const vehiclesApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+  deleteMaintenanceLog: (vehicleId: string, logId: string) =>
+    apiRequest(`/vehicles/${vehicleId}/maintenance-logs/${logId}`, {
+      method: 'DELETE',
+    }),
 };
 
 // ==================== SCHEDULE API ====================

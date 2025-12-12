@@ -71,9 +71,22 @@ interface ScheduledExam {
 function getMostRecentThursday(): Date {
   const today = new Date();
   const dayOfWeek = today.getDay();
+  // Thursday is day 4
   const daysToSubtract = dayOfWeek >= 4 ? dayOfWeek - 4 : dayOfWeek + 3;
   const thursday = new Date(today);
   thursday.setDate(today.getDate() - daysToSubtract);
+  thursday.setHours(0, 0, 0, 0);
+  return thursday;
+}
+
+// Helper function to get the next Thursday (due date for maintenance)
+function getNextThursday(): Date {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  // Thursday is day 4
+  const daysToAdd = dayOfWeek <= 4 ? 4 - dayOfWeek : 7 - dayOfWeek + 4;
+  const thursday = new Date(today);
+  thursday.setDate(today.getDate() + (daysToAdd === 0 ? 7 : daysToAdd)); // If today is Thursday, next is 7 days
   thursday.setHours(0, 0, 0, 0);
   return thursday;
 }
@@ -153,24 +166,27 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   // Use actual scheduled exams from the API
   const upcomingExams = scheduledExams.filter(e => e.status === 'scheduled');
 
-  // Get weekly maintenance reminders (each Thursday)
+  // Get maintenance reminders - vehicles that haven't had maintenance since last Thursday
   const mostRecentThursday = getMostRecentThursday();
-  const thursdayDateStr = mostRecentThursday.toISOString().split('T')[0];
+  const nextThursday = getNextThursday();
+  const nextThursdayDateStr = nextThursday.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
 
   const maintenanceReminders = vehicles
     .filter(vehicle => {
       if (dismissedReminders.includes(vehicle._id)) {
         return false;
       }
+      // Check if vehicle has a maintenance log since the most recent Thursday
       const hasRecentLog = vehicle.maintenanceLogs?.some(log => {
         const logDate = new Date(log.date);
+        logDate.setHours(0, 0, 0, 0);
         return logDate >= mostRecentThursday;
       });
       return !hasRecentLog;
     })
     .map(vehicle => ({
       ...vehicle,
-      reminderDate: thursdayDateStr
+      reminderDate: nextThursdayDateStr
     }));
 
   const handleDismissReminder = (vehicleId: string) => {

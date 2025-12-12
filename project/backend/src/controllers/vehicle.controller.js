@@ -342,3 +342,31 @@ export const updateMaintenanceLog = asyncHandler(async (req, res, next) => {
     });
 });
 
+// @desc    Delete maintenance log
+// @route   DELETE /api/v1/vehicles/:id/maintenance-logs/:logId
+// @access  Private
+export const deleteMaintenanceLog = asyncHandler(async (req, res, next) => {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+        return next(new AppError('Vehicle not found', 404));
+    }
+
+    const log = await MaintenanceLog.findOne({
+        _id: req.params.logId,
+        vehicleId: req.params.id
+    });
+
+    if (!log) {
+        return next(new AppError('Maintenance log not found', 404));
+    }
+
+    await MaintenanceLog.findByIdAndDelete(req.params.logId);
+
+    res.status(200).json({
+        success: true,
+        data: {},
+        message: 'Maintenance log deleted successfully'
+    });
+});
+

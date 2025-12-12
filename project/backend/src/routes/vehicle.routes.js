@@ -10,7 +10,8 @@ import {
     getVehicleCount,
     getMaintenanceLogs,
     addMaintenanceLog,
-    updateMaintenanceLog
+    updateMaintenanceLog,
+    deleteMaintenanceLog
 } from "../controllers/vehicle.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { validateVehicle } from "../middleware/auth.middleware.js";
@@ -41,7 +42,9 @@ router.route("/:id/maintenance-logs")
     .get(getMaintenanceLogs)
     .post(addMaintenanceLog);
 
-router.put("/:id/maintenance-logs/:logId", updateMaintenanceLog);
+router.route("/:id/maintenance-logs/:logId")
+    .put(updateMaintenanceLog)
+    .delete(deleteMaintenanceLog);
 
 export default router;
 

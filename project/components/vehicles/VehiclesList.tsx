@@ -201,6 +201,25 @@ export function VehiclesList() {
     setIsDeleteModalOpen(true);
   };
 
+  const handleDeleteMaintenanceLog = async (vehicleId: string, logId: string | undefined) => {
+    if (!logId) {
+      toast.error('Cannot delete log: Invalid log ID');
+      return;
+    }
+
+    try {
+      const result = await vehiclesApi.deleteMaintenanceLog(vehicleId, logId);
+      if (result.success) {
+        toast.success('Maintenance log deleted');
+        fetchData();
+      } else {
+        toast.error(result.error || 'Failed to delete maintenance log');
+      }
+    } catch (error) {
+      toast.error('Failed to delete maintenance log');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -291,14 +310,27 @@ export function VehiclesList() {
                   <div className="space-y-3">
                     <div className="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider pb-2 border-b">
                       <div className="col-span-2">Date</div>
-                      <div className="col-span-10">Description</div>
+                      <div className="col-span-8">Description</div>
+                      <div className="col-span-2 text-right">Actions</div>
                     </div>
-                    {vehicle.maintenanceLogs.map((log) => (
-                      <div key={log._id || log.id} className="grid grid-cols-12 gap-4 text-sm py-2 border-b border-gray-100 last:border-0">
-                        <div className="col-span-2 text-gray-900">{log.date}</div>
-                        <div className="col-span-10 text-gray-600">{log.description}</div>
-                      </div>
-                    ))}
+                    {vehicle.maintenanceLogs.map((log) => {
+                      const formattedDate = log.date ? new Date(log.date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : 'N/A';
+                      return (
+                        <div key={log._id || log.id} className="grid grid-cols-12 gap-4 text-sm py-2 border-b border-gray-100 last:border-0 items-center">
+                          <div className="col-span-2 text-gray-900">{formattedDate}</div>
+                          <div className="col-span-8 text-gray-600">{log.description}</div>
+                          <div className="col-span-2 flex justify-end gap-2">
+                            <button
+                              onClick={() => handleDeleteMaintenanceLog(vehicle._id, log._id || log.id)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Delete log"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500 text-center py-4">No maintenance logs yet</p>
