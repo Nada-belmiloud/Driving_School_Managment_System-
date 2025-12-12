@@ -465,6 +465,36 @@ export function ScheduleComponent() {
     }
   };
 
+  // Record exam result handler
+  const handleRecordExamResult = async (examId: string, result: 'passed' | 'failed') => {
+    try {
+      const response = await examsApi.recordResult(examId, result);
+      if (response.success) {
+        toast.success(`Exam marked as ${result}`);
+        fetchData();
+      } else {
+        toast.error(response.error || 'Failed to record exam result');
+      }
+    } catch (error) {
+      toast.error('Failed to record exam result');
+    }
+  };
+
+  // Cancel exam handler
+  const handleCancelExam = async (examId: string) => {
+    try {
+      const response = await examsApi.cancel(examId);
+      if (response.success) {
+        toast.success('Exam cancelled');
+        fetchData();
+      } else {
+        toast.error(response.error || 'Failed to cancel exam');
+      }
+    } catch (error) {
+      toast.error('Failed to cancel exam');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -533,6 +563,8 @@ export function ScheduleComponent() {
                 onOpenExamModal={() => setShowExamModal(true)}
                 exams={exams}
                 getCandidateInfo={getCandidateInfo}
+                onRecordResult={handleRecordExamResult}
+                onCancelExam={handleCancelExam}
               />
             )}
           </div>
