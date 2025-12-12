@@ -73,7 +73,11 @@ export function CandidatesList() {
     try {
       const result = await candidatesApi.getAll({ limit: 100 });
       if (result.success && result.data) {
-        setCandidates((result.data as { candidates: CandidateData[] }).candidates || []);
+        // Handle both array and object response formats
+        const candidatesData = Array.isArray(result.data)
+          ? result.data
+          : (result.data as { candidates?: CandidateData[] }).candidates || [];
+        setCandidates(candidatesData as CandidateData[]);
       }
     } catch (error) {
       console.error('Error fetching candidates:', error);

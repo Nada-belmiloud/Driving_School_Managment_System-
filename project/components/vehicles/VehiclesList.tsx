@@ -65,10 +65,18 @@ export function VehiclesList() {
       ]);
 
       if (vehiclesRes.success && vehiclesRes.data) {
-        setVehicles((vehiclesRes.data as { vehicles: Vehicle[] }).vehicles || []);
+        // Handle both array and object response formats
+        const vehiclesData = Array.isArray(vehiclesRes.data)
+          ? vehiclesRes.data
+          : (vehiclesRes.data as { vehicles?: Vehicle[] }).vehicles || [];
+        setVehicles(vehiclesData as Vehicle[]);
       }
       if (instructorsRes.success && instructorsRes.data) {
-        setInstructors((instructorsRes.data as { instructors: Instructor[] }).instructors || []);
+        // Handle both array and object response formats
+        const instructorsData = Array.isArray(instructorsRes.data)
+          ? instructorsRes.data
+          : (instructorsRes.data as { instructors?: Instructor[] }).instructors || [];
+        setInstructors(instructorsData as Instructor[]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -268,7 +276,7 @@ export function VehiclesList() {
                   </button>
                 </div>
 
-                {vehicle.maintenanceLogs.length > 0 ? (
+                {(vehicle.maintenanceLogs?.length || 0) > 0 ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider pb-2 border-b">
                       <div className="col-span-2">Date</div>

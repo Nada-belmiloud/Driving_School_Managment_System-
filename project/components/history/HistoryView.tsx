@@ -39,9 +39,12 @@ export function HistoryView() {
     try {
       const result = await candidatesApi.getAll({ status: 'completed', limit: 100 });
       if (result.success && result.data) {
-        const candidates = (result.data as { candidates: CompletedCandidate[] }).candidates || [];
+        // Handle both array and object response formats
+        const candidatesData = Array.isArray(result.data)
+          ? result.data
+          : (result.data as { candidates?: CompletedCandidate[] }).candidates || [];
         // Transform data and filter for completed candidates
-        const completed = candidates.filter((c: any) => c.status === 'completed' || c.completionDate);
+        const completed = candidatesData.filter((c: any) => c.status === 'completed' || c.completionDate);
         setCompletedCandidates(completed.map((c: any) => ({
           ...c,
           id: c._id,

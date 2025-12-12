@@ -94,16 +94,32 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           setStats(statsRes.data as DashboardStats);
         }
         if (candidatesRes.success && candidatesRes.data) {
-          setCandidates((candidatesRes.data as { candidates: Candidate[] }).candidates || []);
+          // Handle both array and object response formats
+          const candidatesData = Array.isArray(candidatesRes.data)
+            ? candidatesRes.data
+            : (candidatesRes.data as { candidates?: Candidate[] }).candidates || [];
+          setCandidates(candidatesData as Candidate[]);
         }
         if (vehiclesRes.success && vehiclesRes.data) {
-          setVehicles((vehiclesRes.data as { vehicles: Vehicle[] }).vehicles || []);
+          // Handle both array and object response formats
+          const vehiclesData = Array.isArray(vehiclesRes.data)
+            ? vehiclesRes.data
+            : (vehiclesRes.data as { vehicles?: Vehicle[] }).vehicles || [];
+          setVehicles(vehiclesData as Vehicle[]);
         }
         if (instructorsRes.success && instructorsRes.data) {
-          setInstructors((instructorsRes.data as { instructors: Instructor[] }).instructors || []);
+          // Handle both array and object response formats
+          const instructorsData = Array.isArray(instructorsRes.data)
+            ? instructorsRes.data
+            : (instructorsRes.data as { instructors?: Instructor[] }).instructors || [];
+          setInstructors(instructorsData as Instructor[]);
         }
         if (sessionsRes.success && sessionsRes.data) {
-          setUpcomingSessions((sessionsRes.data as { sessions: Session[] }).sessions || []);
+          // Handle both array and object response formats
+          const sessionsData = Array.isArray(sessionsRes.data)
+            ? sessionsRes.data
+            : (sessionsRes.data as { sessions?: Session[] }).sessions || [];
+          setUpcomingSessions(sessionsData as Session[]);
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);

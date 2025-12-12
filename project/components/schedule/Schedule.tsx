@@ -98,13 +98,27 @@ export function ScheduleComponent() {
       ]);
 
       if (sessionsRes.success && sessionsRes.data) {
-        setSessions((sessionsRes.data as { sessions: Session[] }).sessions || []);
+        // Handle both array and object response formats (backend returns data as array or data.schedules)
+        const sessionsData = Array.isArray(sessionsRes.data)
+          ? sessionsRes.data
+          : (sessionsRes.data as { sessions?: Session[]; schedules?: Session[] }).sessions
+            || (sessionsRes.data as { schedules?: Session[] }).schedules
+            || [];
+        setSessions(sessionsData as Session[]);
       }
       if (candidatesRes.success && candidatesRes.data) {
-        setCandidates((candidatesRes.data as { candidates: Candidate[] }).candidates || []);
+        // Handle both array and object response formats
+        const candidatesData = Array.isArray(candidatesRes.data)
+          ? candidatesRes.data
+          : (candidatesRes.data as { candidates?: Candidate[] }).candidates || [];
+        setCandidates(candidatesData as Candidate[]);
       }
       if (instructorsRes.success && instructorsRes.data) {
-        setInstructors((instructorsRes.data as { instructors: Instructor[] }).instructors || []);
+        // Handle both array and object response formats
+        const instructorsData = Array.isArray(instructorsRes.data)
+          ? instructorsRes.data
+          : (instructorsRes.data as { instructors?: Instructor[] }).instructors || [];
+        setInstructors(instructorsData as Instructor[]);
       }
     } catch (error) {
       console.error('Error fetching schedule data:', error);

@@ -58,10 +58,18 @@ export function InstructorsList() {
       ]);
 
       if (instructorsRes.success && instructorsRes.data) {
-        setInstructors((instructorsRes.data as { instructors: Instructor[] }).instructors || []);
+        // Handle both array and object response formats
+        const instructorsData = Array.isArray(instructorsRes.data)
+          ? instructorsRes.data
+          : (instructorsRes.data as { instructors?: Instructor[] }).instructors || [];
+        setInstructors(instructorsData as Instructor[]);
       }
       if (vehiclesRes.success && vehiclesRes.data) {
-        setVehicles((vehiclesRes.data as { vehicles: Vehicle[] }).vehicles || []);
+        // Handle both array and object response formats
+        const vehiclesData = Array.isArray(vehiclesRes.data)
+          ? vehiclesRes.data
+          : (vehiclesRes.data as { vehicles?: Vehicle[] }).vehicles || [];
+        setVehicles(vehiclesData as Vehicle[]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);

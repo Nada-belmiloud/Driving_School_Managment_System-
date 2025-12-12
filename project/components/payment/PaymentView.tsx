@@ -293,7 +293,10 @@ export default function PaymentsPage() {
     try {
       const result = await candidatesApi.getAll({ limit: 100 });
       if (result.success && result.data) {
-        const candidatesData = (result.data as { candidates: any[] }).candidates || [];
+        // Handle both array and object response formats
+        const candidatesData = Array.isArray(result.data)
+          ? result.data
+          : (result.data as { candidates?: any[] }).candidates || [];
         // Transform data to match expected format
         const transformedCandidates = candidatesData.map((c: any) => ({
           ...c,

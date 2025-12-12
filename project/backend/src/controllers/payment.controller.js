@@ -80,6 +80,27 @@ export const addPayment = asyncHandler(async (req, res, next) => {
         date: req.body.date || new Date()
     });
 
+    // Update candidate's paidAmount if payment status is 'paid'
+    if (status === 'paid' || !status) {
+        const paidStatus = status || 'paid';
+        if (paidStatus === 'paid') {
+            await Candidate.findByIdAndUpdate(
+                candidateId,
+                {
+                    $inc: { paidAmount: amount },
+                    $push: {
+                        payments: {
+                            id: payment._id.toString(),
+                            amount,
+                            date: req.body.date || new Date().toISOString().split('T')[0],
+                            note: 'Payment recorded'
+                        }
+                    }
+                }
+            );
+        }
+    }
+
     await payment.populate('candidateId', 'name email phone');
 
     res.status(201).json({
