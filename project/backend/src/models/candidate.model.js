@@ -65,7 +65,21 @@ const candidateSchema = new mongoose.Schema({
             message: 'Progress must be highway_code, parking, or driving'
         },
         default: 'highway_code'
-    }
+    },
+    totalFee: {
+        type: Number,
+        default: 34000
+    },
+    paidAmount: {
+        type: Number,
+        default: 0
+    },
+    payments: [{
+        id: String,
+        amount: Number,
+        date: String,
+        note: String
+    }]
 }, {
     timestamps: true
 });
