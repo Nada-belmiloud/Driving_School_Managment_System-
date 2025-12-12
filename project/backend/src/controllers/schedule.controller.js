@@ -249,6 +249,48 @@ export const completeSchedule = asyncHandler(async (req, res, next) => {
     schedule.status = 'completed';
     await schedule.save();
 
+    // Update the candidate's phases.sessionsCompleted and sessionHistory
+    const candidate = await Candidate.findById(schedule.candidateId);
+    if (candidate) {
+        // Initialize phases if not present
+        if (!candidate.phases || candidate.phases.length === 0) {
+            candidate.phases = [
+                { phase: 'highway_code', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+                { phase: 'parking', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+                { phase: 'driving', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 }
+            ];
+        }
+
+        // Initialize sessionHistory if not present
+        if (!candidate.sessionHistory) {
+            candidate.sessionHistory = [];
+        }
+
+        // Find the phase that matches the lesson type
+        const phaseIndex = candidate.phases.findIndex(p => p.phase === schedule.lessonType);
+
+        if (phaseIndex !== -1) {
+            // Increment sessionsCompleted for this phase
+            candidate.phases[phaseIndex].sessionsCompleted += 1;
+
+            // If this is the first session for this phase, mark it as in_progress
+            if (candidate.phases[phaseIndex].status === 'not_started') {
+                candidate.phases[phaseIndex].status = 'in_progress';
+            }
+        }
+
+        // Add to session history
+        candidate.sessionHistory.push({
+            id: schedule._id.toString(),
+            phase: schedule.lessonType,
+            date: schedule.date.toISOString().split('T')[0],
+            time: schedule.time,
+            status: 'completed'
+        });
+
+        await candidate.save();
+    }
+
     await schedule.populate([
         { path: 'candidateId', select: 'name email' },
         { path: 'instructorId', select: 'name email' }

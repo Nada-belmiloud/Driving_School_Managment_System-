@@ -1,5 +1,6 @@
 // backend/src/controllers/candidate.controller.js
 import Candidate from "../models/candidate.model.js";
+import Schedule from "../models/schedule.model.js";
 import { asyncHandler, AppError } from "../middleware/error.middleware.js";
 
 // @desc    Get all candidates with pagination and filtering
@@ -66,6 +67,76 @@ export const getCandidate = asyncHandler(async (req, res, next) => {
 
     if (!candidate) {
         return next(new AppError('Candidate not found', 404));
+    }
+
+    // Sync completed sessions from Schedule collection
+    const completedSessions = await Schedule.find({
+        candidateId: req.params.id,
+        status: 'completed'
+    });
+
+    // Initialize phases if not present
+    if (!candidate.phases || candidate.phases.length === 0) {
+        candidate.phases = [
+            { phase: 'highway_code', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+            { phase: 'parking', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+            { phase: 'driving', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 }
+        ];
+    }
+
+    // Count completed sessions per phase from Schedule collection
+    const sessionCounts = {
+        highway_code: 0,
+        parking: 0,
+        driving: 0
+    };
+
+    completedSessions.forEach(session => {
+        if (session.lessonType && sessionCounts.hasOwnProperty(session.lessonType)) {
+            sessionCounts[session.lessonType]++;
+        }
+    });
+
+    // Update phases with actual completed session counts
+    let needsSave = false;
+    candidate.phases.forEach(phase => {
+        const actualCount = sessionCounts[phase.phase] || 0;
+        if (phase.sessionsCompleted !== actualCount) {
+            phase.sessionsCompleted = actualCount;
+            needsSave = true;
+        }
+        // Update status if sessions have been completed but status is not_started
+        if (actualCount > 0 && phase.status === 'not_started') {
+            phase.status = 'in_progress';
+            needsSave = true;
+        }
+    });
+
+    // Initialize sessionHistory if not present
+    if (!candidate.sessionHistory) {
+        candidate.sessionHistory = [];
+    }
+
+    // Sync sessionHistory from completed sessions
+    if (completedSessions.length > candidate.sessionHistory.filter(s => s.status === 'completed').length) {
+        const existingIds = new Set(candidate.sessionHistory.map(s => s.id));
+        completedSessions.forEach(session => {
+            if (!existingIds.has(session._id.toString())) {
+                candidate.sessionHistory.push({
+                    id: session._id.toString(),
+                    phase: session.lessonType,
+                    date: session.date ? session.date.toISOString().split('T')[0] : '',
+                    time: session.time || '',
+                    status: 'completed'
+                });
+                needsSave = true;
+            }
+        });
+    }
+
+    // Save if any changes were made
+    if (needsSave) {
+        await candidate.save();
     }
 
     res.status(200).json({

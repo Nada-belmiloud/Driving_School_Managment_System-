@@ -154,8 +154,13 @@ export function ScheduleComponent() {
   };
   
   const getCandidateCompletedSessions = (candidateId: string): Session[] => {
-    const candidate = candidates.find(c => c._id === candidateId || c.id === candidateId);
-    return (candidate?.sessionHistory?.filter((s: any) => s.status === 'completed') || []) as unknown as Session[];
+    // Get completed sessions from the sessions state (Schedule collection)
+    return sessions.filter((s) => {
+      const sessionCandidateId = s.candidateId && typeof s.candidateId === 'object'
+        ? s.candidateId._id
+        : s.candidateId;
+      return sessionCandidateId === candidateId && s.status === 'completed';
+    });
   };
 
   const getCandidateExamHistory = (candidateId: string) => {
