@@ -170,7 +170,10 @@ export function CandidatesList() {
     return (
       <CandidateDetails
         candidateId={selectedCandidate}
-        onClose={() => setSelectedCandidate(null)}
+        onClose={() => {
+          setSelectedCandidate(null);
+          fetchCandidates(); // Refresh the list when closing details
+        }}
         onUpdateCandidate={handleUpdateCandidate}
         onScheduleSession={handleScheduleSession}
         onRecordPayment={handleRecordPayment}
