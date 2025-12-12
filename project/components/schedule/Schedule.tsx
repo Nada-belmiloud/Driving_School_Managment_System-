@@ -165,30 +165,88 @@ export function ScheduleComponent() {
 
   const getCandidateExamHistory = (candidateId: string) => {
     const candidate = candidates.find(c => c._id === candidateId || c.id === candidateId);
-    if (!candidate || !candidate.phases) return [];
+    if (!candidate) return [];
 
-    return candidate.phases.map(phase => {
-        // Determine 15-day status (simplified logic for UI display)
-        const lastExamDate = phase.examDate ? new Date(phase.examDate) : null;
+    // Initialize phases from candidate or with defaults
+    const phases = candidate.phases && candidate.phases.length > 0
+      ? candidate.phases
+      : [
+          { phase: 'highway_code' as Phase, status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0, examDate: undefined, lastExamDate: undefined },
+          { phase: 'parking' as Phase, status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0, examDate: undefined, lastExamDate: undefined },
+          { phase: 'driving' as Phase, status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0, examDate: undefined, lastExamDate: undefined }
+        ];
+
+    // Count completed sessions from the sessions state
+    const sessionCounts: Record<string, number> = {
+      highway_code: 0,
+      parking: 0,
+      driving: 0
+    };
+
+    sessions.forEach(session => {
+      const sessionCandidateId = session.candidateId && typeof session.candidateId === 'object'
+        ? session.candidateId._id
+        : session.candidateId;
+      if (sessionCandidateId === candidateId && session.status === 'completed') {
+        const lessonType = session.lessonType || session.phase;
+        if (lessonType && sessionCounts.hasOwnProperty(lessonType)) {
+          sessionCounts[lessonType]++;
+        }
+      }
+    });
+
+    // Get exam info from exams state
+    const candidateExams = exams.filter(exam => {
+      const examCandidateId = exam.candidateId && typeof exam.candidateId === 'object'
+        ? exam.candidateId._id
+        : exam.candidateId;
+      return examCandidateId === candidateId;
+    });
+
+    return phases.map(phase => {
+        // Get exam info for this phase
+        const phaseExams = candidateExams.filter(e => e.examType === phase.phase);
+        const passedExam = phaseExams.find(e => e.status === 'passed');
+        const lastExam = phaseExams.length > 0 ? phaseExams[phaseExams.length - 1] : null;
+
+        // Use actual session count from sessions state
+        const actualSessionsCompleted = sessionCounts[phase.phase] || phase.sessionsCompleted || 0;
+
+        // Determine exam results
+        const examPassed = passedExam ? true : phase.examPassed;
+        const examDate = lastExam?.date || phase.examDate || phase.lastExamDate;
+        const examAttempts = phaseExams.length > 0 ? phaseExams.length : phase.examAttempts;
+
+        // Determine 15-day status
+        const lastExamDateObj = examDate ? new Date(examDate) : null;
         let waitingStatus = 'N/A';
-        if (lastExamDate) {
-            const fifteenDaysLater = new Date(lastExamDate);
-            fifteenDaysLater.setDate(lastExamDate.getDate() + 15);
+        if (lastExamDateObj) {
+            const fifteenDaysLater = new Date(lastExamDateObj);
+            fifteenDaysLater.setDate(lastExamDateObj.getDate() + 15);
             if (new Date() < fifteenDaysLater) {
                 const remainingDays = Math.ceil((fifteenDaysLater.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
                 waitingStatus = `Waiting (${remainingDays} days)`;
             } else {
                 waitingStatus = 'Ready';
             }
+        } else if (actualSessionsCompleted > 0) {
+            waitingStatus = 'Ready for exam';
+        }
+
+        // Determine phase status
+        let phaseStatus = phase.status;
+        if (actualSessionsCompleted > 0 && phaseStatus === 'not_started') {
+            phaseStatus = 'in_progress';
         }
 
         return {
             phase: phaseLabels[phase.phase],
-            lastExamDate: phase.examDate || 'N/A',
-            results: phase.examPassed ? 'Passed' : (phase.examDate ? 'Failed' : 'N/A'),
-            attempts: phase.examAttempts,
+            lastExamDate: examDate || 'N/A',
+            results: examPassed ? 'Passed' : (examDate ? 'Failed' : 'N/A'),
+            attempts: examAttempts,
             waitingStatus: waitingStatus,
-            currentPhaseStatus: phase.status,
+            currentPhaseStatus: phaseStatus,
+            sessionsCompleted: actualSessionsCompleted,
         };
     });
   };
@@ -689,7 +747,8 @@ function ExamForm({
     results: string; 
     attempts: number; 
     waitingStatus: string; 
-    currentPhaseStatus: string; 
+    currentPhaseStatus: string;
+    sessionsCompleted?: number;
   }[];
   onCancel: () => void;
   onSubmit: (payload: { candidateId: string; phase: string; date: string; time: string }) => void;
@@ -752,10 +811,11 @@ function ExamForm({
                 <thead className="bg-gray-50 sticky top-0">
                     <tr>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Phase</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Sessions</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Last Exam Date</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Result</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Attempts</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">15-Day Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -763,6 +823,7 @@ function ExamForm({
                         examHistory.map((history, index) => (
                             <tr key={index}>
                                 <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{history.phase}</td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{history.sessionsCompleted ?? 0}</td>
                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{history.lastExamDate}</td>
                                 <td className="px-3 py-2 whitespace-nowrap text-sm">
                                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
@@ -778,7 +839,7 @@ function ExamForm({
                             </tr>
                         ))
                     ) : (
-                        <tr><td colSpan={5} className="text-center py-4 text-sm text-gray-500">No exam history available.</td></tr>
+                        <tr><td colSpan={6} className="text-center py-4 text-sm text-gray-500">No exam history available.</td></tr>
                     )}
                 </tbody>
             </table>
