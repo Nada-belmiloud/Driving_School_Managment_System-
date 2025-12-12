@@ -341,8 +341,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 </tr>
               ) : (
                 upcomingSessions.map(session => {
-                  const candidateName = typeof session.candidateId === 'object' ? session.candidateId.name : candidates.find(c => c._id === session.candidateId)?.name;
-                  const instructorName = typeof session.instructorId === 'object' ? session.instructorId.name : instructors.find(i => i._id === session.instructorId)?.name;
+                  const candidateName = typeof session.candidateId === 'object' && session.candidateId !== null
+                    ? session.candidateId.name
+                    : candidates.find(c => c._id === session.candidateId)?.name;
+                  const instructorName = typeof session.instructorId === 'object' && session.instructorId !== null
+                    ? session.instructorId.name
+                    : instructors.find(i => i._id === session.instructorId)?.name;
                   return (
                     <tr key={session._id} className="border-b border-gray-100 last:border-0">
                       <td className="py-3 px-4 text-gray-900">{candidateName || 'Unknown'}</td>

@@ -78,8 +78,11 @@ export const getCandidate = asyncHandler(async (req, res, next) => {
 // @route   POST /api/v1/candidates
 // @access  Private
 export const addCandidate = asyncHandler(async (req, res, next) => {
-    // Check if candidate with email already exists
-    const existingCandidate = await Candidate.findOne({ email: req.body.email });
+    // Check if candidate with email already exists (exclude deleted candidates)
+    const existingCandidate = await Candidate.findOne({
+        email: req.body.email,
+        status: { $ne: 'deleted' }
+    });
 
     if (existingCandidate) {
         return next(new AppError('Candidate with this email already exists', 400));
