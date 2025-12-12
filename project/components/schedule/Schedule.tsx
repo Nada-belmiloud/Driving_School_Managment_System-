@@ -1177,9 +1177,11 @@ interface ExamsViewProps {
   onOpenExamModal: () => void;
   exams: Exam[];
   getCandidateInfo: (id: string) => Candidate | undefined;
+  onRecordResult: (examId: string, result: 'passed' | 'failed') => void;
+  onCancelExam: (examId: string) => void;
 }
 
-function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo }: ExamsViewProps) {
+function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo, onRecordResult, onCancelExam }: ExamsViewProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
