@@ -21,6 +21,7 @@ interface Vehicle {
   model: string;
   licensePlate: string;
   instructorId?: string;
+  assignedInstructor?: string | { _id: string; name: string; email?: string; phone?: string };
   maintenanceLogs: MaintenanceLog[];
 }
 
@@ -86,7 +87,17 @@ export function VehiclesList() {
     }
   };
 
-  const getInstructorName = (instructorId?: string): string => {
+  const getInstructorName = (vehicle: Vehicle): string => {
+    // Handle populated assignedInstructor object
+    if (vehicle.assignedInstructor && typeof vehicle.assignedInstructor === 'object') {
+      return vehicle.assignedInstructor.name;
+    }
+    
+    // Handle assignedInstructor as ID string or fall back to instructorId
+    const instructorId = typeof vehicle.assignedInstructor === 'string' 
+      ? vehicle.assignedInstructor 
+      : vehicle.instructorId;
+    
     if (!instructorId) return 'Unassigned';
     const instructor = instructors.find(i => i._id === instructorId || i.id === instructorId);
     return instructor ? instructor.name : 'Unassigned';
@@ -94,7 +105,7 @@ export function VehiclesList() {
 
   const filteredVehicles = vehicles.filter(vehicle => {
     const query = searchQuery.toLowerCase();
-    const instructorName = getInstructorName(vehicle.instructorId);
+    const instructorName = getInstructorName(vehicle);
     return (
       vehicle.brand.toLowerCase().includes(query) ||
       vehicle.model.toLowerCase().includes(query) ||
@@ -250,7 +261,7 @@ export function VehiclesList() {
                       </h3>
                       <p className="text-sm text-gray-500 mt-0.5">{vehicle.licensePlate}</p>
                       <p className="text-sm text-gray-600 mt-1">
-                        Assigned to: <span className="font-medium">{getInstructorName(vehicle.instructorId)}</span>
+                        Assigned to: <span className="font-medium">{getInstructorName(vehicle)}</span>
                       </p>
                     </div>
                   </div>
