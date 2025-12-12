@@ -123,6 +123,18 @@ export const addSchedule = asyncHandler(async (req, res, next) => {
         return next(new AppError('Instructor already has a lesson scheduled at this time', 400));
     }
 
+    // Check for candidate scheduling conflict - candidate can't have two sessions at the same time
+    const existingCandidateSchedule = await Schedule.findOne({
+        candidateId,
+        date: new Date(date),
+        time,
+        status: 'scheduled'
+    });
+
+    if (existingCandidateSchedule) {
+        return next(new AppError('Candidate already has a lesson scheduled at this time', 400));
+    }
+
     const schedule = await Schedule.create({
         candidateId,
         instructorId,
@@ -168,7 +180,20 @@ export const updateSchedule = asyncHandler(async (req, res, next) => {
         });
 
         if (existingSchedule) {
-            return next(new AppError('Schedule conflict detected', 400));
+            return next(new AppError('Instructor schedule conflict detected', 400));
+        }
+
+        // Also check for candidate conflicts
+        const existingCandidateSchedule = await Schedule.findOne({
+            _id: { $ne: req.params.id },
+            candidateId: schedule.candidateId,
+            date: new Date(checkDate),
+            time: checkTime,
+            status: 'scheduled'
+        });
+
+        if (existingCandidateSchedule) {
+            return next(new AppError('Candidate schedule conflict detected', 400));
         }
     }
 

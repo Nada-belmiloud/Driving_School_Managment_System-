@@ -54,6 +54,17 @@ interface Session {
   status: 'scheduled' | 'completed' | 'cancelled';
 }
 
+interface Exam {
+  _id: string;
+  id?: string;
+  candidateId: string | { _id: string; name: string };
+  instructorId?: string | { _id: string; name: string };
+  examType: Phase;
+  date: string;
+  time: string;
+  status: 'scheduled' | 'passed' | 'failed' | 'cancelled';
+}
+
 // --- Constants ---
 const phaseLabels: Record<Phase, string> = {
   highway_code: "Highway Code",
@@ -67,12 +78,9 @@ export function ScheduleComponent() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Exams local state (newly scheduled exams stored here)
-  const [exams, setExams] = useState<
-    { id: string; candidateId: string; phase: string; date: string; time: string; status?: string }[]
-  >([]);
   // UI State
   const [activeTab, setActiveTab] = useState<"training" | "exams">("training");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -91,10 +99,11 @@ export function ScheduleComponent() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [sessionsRes, candidatesRes, instructorsRes] = await Promise.all([
+      const [sessionsRes, candidatesRes, instructorsRes, examsRes] = await Promise.all([
         scheduleApi.getAll({ limit: 100 }),
         candidatesApi.getAll({ limit: 100 }),
-        instructorsApi.getAll({ limit: 100 })
+        instructorsApi.getAll({ limit: 100 }),
+        examsApi.getAll({ limit: 100 })
       ]);
 
       if (sessionsRes.success && sessionsRes.data) {
@@ -119,6 +128,13 @@ export function ScheduleComponent() {
           ? instructorsRes.data
           : (instructorsRes.data as { instructors?: Instructor[] }).instructors || [];
         setInstructors(instructorsData as Instructor[]);
+      }
+      if (examsRes.success && examsRes.data) {
+        // Handle both array and object response formats
+        const examsData = Array.isArray(examsRes.data)
+          ? examsRes.data
+          : (examsRes.data as { exams?: Exam[] }).exams || [];
+        setExams(examsData as Exam[]);
       }
     } catch (error) {
       console.error('Error fetching schedule data:', error);
@@ -981,7 +997,7 @@ interface ExamsViewProps {
     examAttempts: number;
   }[];
   onOpenExamModal: () => void;
-  exams: { id: string; candidateId: string; phase: string; date: string; time: string; status?: string }[];
+  exams: Exam[];
   getCandidateInfo: (id: string) => Candidate | undefined;
 }
 
@@ -1058,15 +1074,16 @@ function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo }:
                 </div>
               </div>
             ))}
-            {/* Also show local scheduled exams (from UI) */}
+            {/* Also show scheduled exams from API */}
             {exams.map((e) => {
-              const candidate = getCandidateInfo(e.candidateId);
+              const candidateIdStr = e.candidateId && typeof e.candidateId === 'object' ? e.candidateId._id : (e.candidateId || '');
+              const candidateName = e.candidateId && typeof e.candidateId === 'object' ? e.candidateId.name : getCandidateInfo(candidateIdStr)?.name;
               return (
-                <div key={e.id} className="border border-gray-200 rounded-lg p-4">
+                <div key={e._id || e.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="font-medium text-gray-900">
-                        {candidate?.name || "Unknown Candidate"} - {phaseLabels[e.phase as Phase]}
+                        {candidateName || "Unknown Candidate"} - {phaseLabels[e.examType as Phase]}
                       </div>
                       <div className="text-sm text-gray-600">{e.date} {e.time}</div>
                     </div>
