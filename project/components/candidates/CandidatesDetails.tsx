@@ -48,10 +48,26 @@ export function CandidateDetails({
       const result = await candidatesApi.getById(candidateId);
       if (result.success && result.data) {
         const candidateData = (result.data as { candidate: any }).candidate || result.data;
-        // Transform MongoDB _id to id
+
+        // Calculate age from dateOfBirth
+        let calculatedAge = 0;
+        if (candidateData.dateOfBirth) {
+          const birthDate = new Date(candidateData.dateOfBirth);
+          const today = new Date();
+          calculatedAge = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            calculatedAge--;
+          }
+        }
+
+        // Transform MongoDB _id to id and map fields
         const transformed = {
           ...candidateData,
           id: candidateData._id || candidateData.id,
+          age: candidateData.age || calculatedAge,
+          licenseCategory: candidateData.licenseCategory || candidateData.licenseType,
+          registrationDate: candidateData.registrationDate || candidateData.createdAt,
           documents: candidateData.documents || [],
           phases: candidateData.phases || [],
           payments: candidateData.payments || [],
@@ -195,11 +211,17 @@ export function CandidateDetails({
     setIsEditingDocuments(false);
   };
   
-  const handleSaveChanges = () => {
+  const handleSaveChanges = async () => {
     // Call the prop function to update the main data source
     onUpdateCandidate(candidate.id, { documents: editedDocuments });
     
-    console.log('Documents saved and update function called.');
+    // Update local state immediately
+    setCandidate({
+      ...candidate,
+      documents: editedDocuments
+    });
+
+    toast.success('Documents updated successfully');
     setIsEditingDocuments(false);
   };
 
