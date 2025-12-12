@@ -15,9 +15,11 @@ interface CompletedCandidate {
   name: string;
   phone: string;
   email: string;
-  licenseCategory: string;
+  licenseType?: string;
+  licenseCategory?: string;
   registrationDate: string;
   completionDate?: string;
+  updatedAt?: string;
   paidAmount: number;
   examHistory: Array<{ id: string; phase: string; date: string; passed: boolean; attemptNumber: number; notes?: string }>;
   sessionHistory: Array<{ id: string; phase: string; date: string; time: string; status: string }>;
@@ -48,6 +50,9 @@ export function HistoryView() {
         setCompletedCandidates(completed.map((c: any) => ({
           ...c,
           id: c._id,
+          licenseCategory: c.licenseType || c.licenseCategory || 'N/A',
+          // Use completionDate if available, otherwise use updatedAt for completed candidates
+          completionDate: c.completionDate || (c.status === 'completed' ? c.updatedAt : null),
           examHistory: c.examHistory || [],
           sessionHistory: c.sessionHistory || [],
           payments: c.payments || []

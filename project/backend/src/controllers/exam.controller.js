@@ -271,6 +271,7 @@ export const recordExamResult = asyncHandler(async (req, res, next) => {
                 // If this is the last phase (driving), mark candidate as completed
                 if (currentIndex === progressOrder.length - 1) {
                     candidate.status = 'completed';
+                    candidate.completionDate = new Date();
                 } else if (currentIndex < progressOrder.length - 1) {
                     // Move to next phase and mark it as in_progress
                     candidate.progress = progressOrder[currentIndex + 1];

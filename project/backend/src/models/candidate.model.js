@@ -58,6 +58,10 @@ const candidateSchema = new mongoose.Schema({
         },
         default: 'active'
     },
+    completionDate: {
+        type: Date,
+        default: null
+    },
     progress: {
         type: String,
         enum: {
