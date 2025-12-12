@@ -503,10 +503,10 @@ function SessionForm({
     time: string;
   }) => void;
 }) {
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?.id || "");
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?._id || candidates[0]?.id || "");
   const [phase, setPhase] = useState<string>("parking");
   const [instructorId, setInstructorId] = useState<string>(
-    instructors?.[0]?.id ?? ""
+    instructors?.[0]?._id || instructors?.[0]?.id || ""
   );
   const [date, setDate] = useState<string>(() =>
     defaultDate.toISOString().slice(0, 10)
@@ -542,7 +542,7 @@ function SessionForm({
             required
           >
             {candidates.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option key={c._id || c.id} value={c._id || c.id}>
                 {c.name}
               </option>
             ))}
@@ -598,7 +598,7 @@ function SessionForm({
                     required
                 >
                     {instructors.map((ins) => (
-                        <option key={ins.id} value={ins.id}>
+                        <option key={ins._id || ins.id} value={ins._id || ins.id}>
                             {ins.name}
                         </option>
                     ))}
@@ -673,7 +673,7 @@ function ExamForm({
   onCancel: () => void;
   onSubmit: (payload: { candidateId: string; phase: string; date: string; time: string }) => void;
 }) {
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?.id || "");
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?._id || candidates[0]?.id || "");
   const [date, setDate] = useState<string>(() =>
     defaultDate.toISOString().slice(0, 10)
   );
@@ -684,7 +684,7 @@ function ExamForm({
     : [];
   
   // Auto-detect the current phase as the one marked 'in_progress' or the next phase if current is passed
-  const candidate = candidates.find(c => c.id === selectedCandidateId);
+  const candidate = candidates.find(c => (c._id || c.id) === selectedCandidateId);
   const currentPhase = candidate?.phases?.find(p => p.status === 'in_progress');
   const nextPhase = candidate?.phases?.find(p => p.status === 'not_started');
   
@@ -714,7 +714,7 @@ function ExamForm({
             required
           >
             {candidates.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option key={c._id || c.id} value={c._id || c.id}>
                 {c.name}
               </option>
             ))}
