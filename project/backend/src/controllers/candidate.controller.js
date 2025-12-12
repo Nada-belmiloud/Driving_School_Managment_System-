@@ -101,12 +101,21 @@ export const getCandidate = asyncHandler(async (req, res, next) => {
     let needsSave = false;
     candidate.phases.forEach(phase => {
         const actualCount = sessionCounts[phase.phase] || 0;
-        if (phase.sessionsCompleted !== actualCount) {
-            phase.sessionsCompleted = actualCount;
+        // Cap sessions at sessionsPlan (default 10)
+        const cappedCount = Math.min(actualCount, phase.sessionsPlan || 10);
+
+        if (phase.sessionsCompleted !== cappedCount) {
+            phase.sessionsCompleted = cappedCount;
             needsSave = true;
         }
-        // Update status if sessions have been completed but status is not_started
-        if (actualCount > 0 && phase.status === 'not_started') {
+
+        // Update status based on sessions completed
+        if (cappedCount >= (phase.sessionsPlan || 10) && phase.status !== 'completed' && !phase.examPassed) {
+            // All sessions completed, mark phase as completed (ready for exam)
+            phase.status = 'completed';
+            needsSave = true;
+        } else if (cappedCount > 0 && phase.status === 'not_started') {
+            // Some sessions completed, mark as in_progress
             phase.status = 'in_progress';
             needsSave = true;
         }

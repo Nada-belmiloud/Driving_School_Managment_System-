@@ -209,8 +209,10 @@ export function ScheduleComponent() {
         const passedExam = phaseExams.find(e => e.status === 'passed');
         const lastExam = phaseExams.length > 0 ? phaseExams[phaseExams.length - 1] : null;
 
-        // Use actual session count from sessions state
-        const actualSessionsCompleted = sessionCounts[phase.phase] || phase.sessionsCompleted || 0;
+        // Use actual session count from sessions state, capped at sessionsPlan (10)
+        const rawSessionsCompleted = sessionCounts[phase.phase] || phase.sessionsCompleted || 0;
+        const sessionsPlan = phase.sessionsPlan || 10;
+        const actualSessionsCompleted = Math.min(rawSessionsCompleted, sessionsPlan);
 
         // Determine exam results
         const examPassed = passedExam ? true : phase.examPassed;
@@ -229,13 +231,17 @@ export function ScheduleComponent() {
             } else {
                 waitingStatus = 'Ready';
             }
-        } else if (actualSessionsCompleted > 0) {
+        } else if (actualSessionsCompleted >= sessionsPlan) {
             waitingStatus = 'Ready for exam';
+        } else if (actualSessionsCompleted > 0) {
+            waitingStatus = 'In training';
         }
 
         // Determine phase status
         let phaseStatus = phase.status;
-        if (actualSessionsCompleted > 0 && phaseStatus === 'not_started') {
+        if (actualSessionsCompleted >= sessionsPlan && !examPassed) {
+            phaseStatus = 'completed'; // All sessions done, ready for exam
+        } else if (actualSessionsCompleted > 0 && phaseStatus === 'not_started') {
             phaseStatus = 'in_progress';
         }
 

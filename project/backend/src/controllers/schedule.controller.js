@@ -135,6 +135,18 @@ export const addSchedule = asyncHandler(async (req, res, next) => {
         return next(new AppError('Candidate already has a lesson scheduled at this time', 400));
     }
 
+    // Check if candidate has reached the maximum sessions for this phase (10 sessions max, excluding cancelled)
+    const existingSessionsForPhase = await Schedule.countDocuments({
+        candidateId,
+        lessonType,
+        status: { $in: ['scheduled', 'completed'] }  // Don't count cancelled sessions
+    });
+
+    const MAX_SESSIONS_PER_PHASE = 10;
+    if (existingSessionsForPhase >= MAX_SESSIONS_PER_PHASE) {
+        return next(new AppError(`Candidate has already reached the maximum of ${MAX_SESSIONS_PER_PHASE} sessions for ${lessonType}. Cannot schedule more sessions for this phase.`, 400));
+    }
+
     const schedule = await Schedule.create({
         candidateId,
         instructorId,
