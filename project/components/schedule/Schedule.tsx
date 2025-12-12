@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Info,
   X,
-  AlertTriangle,
   Loader2,
 } from "lucide-react";
 
@@ -163,7 +162,17 @@ export function ScheduleComponent() {
     });
   };
 
-  const getCandidateExamHistory = (candidateId: string) => {
+  const getCandidateExamHistory = (candidateId: string): {
+    phase: string;
+    lastExamDate: string;
+    results: string;
+    attempts: number;
+    waitingStatus: string;
+    currentPhaseStatus: string;
+    sessionsCompleted: number;
+    hasFailed: boolean;
+    hasScheduledExam: boolean;
+  }[] => {
     const candidate = candidates.find(c => c._id === candidateId || c.id === candidateId);
     if (!candidate) return [];
 
@@ -221,40 +230,53 @@ export function ScheduleComponent() {
 
         // Determine exam results - only from actual completed exams
         const examPassed = passedExam ? true : (phase.examPassed || false);
-
-        // Last exam date should be from completed exams only, formatted nicely
-        const lastExamDateRaw = lastCompletedExam?.date || (phase.examPassed ? phase.examDate : null);
-        const lastExamDateFormatted = lastExamDateRaw
-          ? new Date(lastExamDateRaw).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-          : 'N/A';
+        const hasFailed = failedExams.length > 0;
 
         // Exam attempts = number of completed exams (passed or failed)
         const examAttempts = completedExams.length > 0 ? completedExams.length : (phase.examAttempts || 0);
 
-        // Determine result based on actual exam status
+        // Determine result and date based on actual exam status
         let examResult = 'N/A';
+        let lastExamDateFormatted = 'N/A';
+
         if (examPassed) {
             examResult = 'Passed';
-        } else if (failedExams.length > 0 || (examAttempts > 0 && !examPassed)) {
+            const passedDate = lastCompletedExam?.date || phase.examDate;
+            lastExamDateFormatted = passedDate
+              ? new Date(passedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+              : 'N/A';
+        } else if (hasFailed) {
             examResult = 'Failed';
+            const failedDate = lastCompletedExam?.date;
+            lastExamDateFormatted = failedDate
+              ? new Date(failedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+              : 'N/A';
         } else if (scheduledExam) {
             examResult = 'Scheduled';
+            // For scheduled exams, show the scheduled date
+            lastExamDateFormatted = scheduledExam.date
+              ? new Date(scheduledExam.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+              : 'N/A';
         }
+        // If no exam at all, both remain 'N/A'
 
         // Determine status based on exam results and 15-day waiting rule
         let waitingStatus = 'N/A';
-        const lastExamDateObj = lastCompletedExam?.date ? new Date(lastCompletedExam.date) :
-                                (phase.examDate ? new Date(phase.examDate) : null);
 
         if (examPassed) {
             waitingStatus = 'Completed';
-        } else if (lastExamDateObj && !examPassed) {
+        } else if (hasFailed) {
             // Check 15-day waiting period after failed exam
-            const fifteenDaysLater = new Date(lastExamDateObj);
-            fifteenDaysLater.setDate(lastExamDateObj.getDate() + 15);
-            if (new Date() < fifteenDaysLater) {
-                const remainingDays = Math.ceil((fifteenDaysLater.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
-                waitingStatus = `Waiting (${remainingDays} days)`;
+            const lastFailedExamDate = lastCompletedExam?.date ? new Date(lastCompletedExam.date) : null;
+            if (lastFailedExamDate) {
+                const fifteenDaysLater = new Date(lastFailedExamDate);
+                fifteenDaysLater.setDate(lastFailedExamDate.getDate() + 15);
+                if (new Date() < fifteenDaysLater) {
+                    const remainingDays = Math.ceil((fifteenDaysLater.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                    waitingStatus = `Waiting (${remainingDays} days)`;
+                } else {
+                    waitingStatus = 'Ready to retry';
+                }
             } else {
                 waitingStatus = 'Ready to retry';
             }
@@ -285,6 +307,8 @@ export function ScheduleComponent() {
             waitingStatus: waitingStatus,
             currentPhaseStatus: phaseStatus,
             sessionsCompleted: actualSessionsCompleted,
+            hasFailed: hasFailed,
+            hasScheduledExam: !!scheduledExam,
         };
     });
   };
@@ -786,7 +810,9 @@ function ExamForm({
     attempts: number; 
     waitingStatus: string; 
     currentPhaseStatus: string;
-    sessionsCompleted?: number;
+    sessionsCompleted: number;
+    hasFailed: boolean;
+    hasScheduledExam: boolean;
   }[];
   onCancel: () => void;
   onSubmit: (payload: { candidateId: string; phase: string; date: string; time: string }) => void;
@@ -801,15 +827,31 @@ function ExamForm({
     ? getCandidateExamHistory(selectedCandidateId) 
     : [];
   
-  // Auto-detect the current phase as the one marked 'in_progress' or the next phase if current is passed
-  const candidate = candidates.find(c => (c._id || c.id) === selectedCandidateId);
-  const currentPhase = candidate?.phases?.find(p => p.status === 'in_progress');
-  const nextPhase = candidate?.phases?.find(p => p.status === 'not_started');
-  
-  // Determine exam phase: if current phase failed or needs retake, use current phase; otherwise use next phase
-  const examPhase = currentPhase && (!currentPhase.examPassed || currentPhase.examDate) 
-    ? currentPhase.phase 
-    : nextPhase?.phase || currentPhase?.phase || 'highway_code';
+  // Find phase status from exam history (which has actual computed status)
+  const getPhaseFromHistory = (phaseName: string) => examHistory.find(h => h.phase === phaseName);
+  const highwayCodeStatus = getPhaseFromHistory('Highway Code');
+  const parkingStatus = getPhaseFromHistory('Parking');
+  const drivingStatus = getPhaseFromHistory('Driving');
+
+  // Determine which phase needs an exam
+  let examPhase: Phase = 'highway_code';
+  let phaseMessage = 'First phase';
+
+  if (highwayCodeStatus?.results === 'Passed') {
+    if (parkingStatus?.results === 'Passed') {
+      examPhase = 'driving';
+      phaseMessage = drivingStatus?.hasFailed ? 'Retaking after failure' : 'Final phase';
+    } else {
+      examPhase = 'parking';
+      phaseMessage = parkingStatus?.hasFailed ? 'Retaking after failure' : 'Moving to next phase';
+    }
+  } else if (highwayCodeStatus?.hasFailed) {
+    examPhase = 'highway_code';
+    phaseMessage = 'Retaking after failure';
+  } else if (highwayCodeStatus?.hasScheduledExam) {
+    examPhase = 'highway_code';
+    phaseMessage = 'Exam already scheduled';
+  }
 
   const currentPhaseLabel = phaseLabels[examPhase] || 'N/A';
 
@@ -895,8 +937,7 @@ function ExamForm({
               <div className="text-right">
                 <p className="text-sm text-blue-700">Auto-detected based on candidate progress</p>
                 <p className="text-xs text-blue-600">
-                  {currentPhase && !currentPhase.examPassed ? 'Retaking failed phase' : 
-                   nextPhase ? 'Moving to next phase' : 'Final phase'}
+                  {phaseMessage}
                 </p>
               </div>
             </div>
