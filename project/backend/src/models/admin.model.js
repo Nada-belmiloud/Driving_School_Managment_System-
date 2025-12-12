@@ -1,6 +1,7 @@
 // backend/src/models/admin.model.js
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 const adminSchema = new mongoose.Schema({
     name: {
@@ -25,6 +26,14 @@ const adminSchema = new mongoose.Schema({
     },
     lastPasswordChange: {
         type: Date
+    },
+    passwordResetToken: {
+        type: String,
+        select: false
+    },
+    passwordResetExpires: {
+        type: Date,
+        select: false
     }
 }, {
     timestamps: true
@@ -44,6 +53,24 @@ adminSchema.pre('save', async function(next) {
 // method to compare password
 adminSchema.methods.comparePassword = async function(candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// method to generate password reset token
+adminSchema.methods.createPasswordResetToken = function() {
+    // Generate random token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+
+    // Hash token and save to database
+    this.passwordResetToken = crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
+
+    // Token expires in 1 hour
+    this.passwordResetExpires = Date.now() + 60 * 60 * 1000;
+
+    // Return unhashed token (to send via email)
+    return resetToken;
 };
 
 export default mongoose.model("Admin", adminSchema);

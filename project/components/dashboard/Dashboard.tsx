@@ -1,21 +1,77 @@
 'use client';
 
-import { useState } from 'react';
-import { Users, GraduationCap, Car, CreditCard, AlertTriangle, Calendar, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, GraduationCap, Car, CreditCard, AlertTriangle, Calendar, X, Loader2 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { mockCandidates, mockInstructors, mockVehicles, mockSessions } from '../../lib/mockData';
+import { dashboardApi, candidatesApi, instructorsApi, vehiclesApi, scheduleApi, examsApi } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 interface DashboardProps {
   onNavigate: (view: string) => void;
+}
+
+interface DashboardStats {
+  totalCandidates: number;
+  totalInstructors: number;
+  totalVehicles: number;
+  pendingPayments: {
+    count: number;
+    totalAmount: number;
+  };
+}
+
+interface Candidate {
+  _id: string;
+  name: string;
+  phases: Array<{
+    phase: string;
+    status: string;
+    sessionsCompleted: number;
+    sessionsPlan: number;
+  }>;
+}
+
+interface Vehicle {
+  _id: string;
+  brand: string;
+  model: string;
+  licensePlate: string;
+  instructorId?: string;
+  maintenanceLogs?: Array<{ date: string }>;
+}
+
+interface Instructor {
+  _id: string;
+  name: string;
+}
+
+interface Session {
+  _id: string;
+  candidateId: string | { _id: string; name: string };
+  instructorId: string | { _id: string; name: string };
+  lessonType: string;
+  date: string;
+  time: string;
+  status: string;
+}
+
+interface ScheduledExam {
+  _id: string;
+  candidateId: string | { _id: string; name: string };
+  instructorId?: string | { _id: string; name: string };
+  examType: string;
+  date: string;
+  time: string;
+  status: string;
 }
 
 // Helper function to get the most recent Thursday
 function getMostRecentThursday(): Date {
   const today = new Date();
   const dayOfWeek = today.getDay();
-  // 4 is Thursday (Sunday = 0, Monday = 1, ..., Thursday = 4)
+  // Thursday is day 4
   const daysToSubtract = dayOfWeek >= 4 ? dayOfWeek - 4 : dayOfWeek + 3;
   const thursday = new Date(today);
   thursday.setDate(today.getDate() - daysToSubtract);
@@ -23,63 +79,140 @@ function getMostRecentThursday(): Date {
   return thursday;
 }
 
+// Helper function to get the next Thursday (due date for maintenance)
+function getNextThursday(): Date {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  // Thursday is day 4
+  const daysToAdd = dayOfWeek <= 4 ? 4 - dayOfWeek : 7 - dayOfWeek + 4;
+  const thursday = new Date(today);
+  thursday.setDate(today.getDate() + (daysToAdd === 0 ? 7 : daysToAdd)); // If today is Thursday, next is 7 days
+  thursday.setHours(0, 0, 0, 0);
+  return thursday;
+}
+
 export function Dashboard({ onNavigate }: DashboardProps) {
   const [dismissedReminders, setDismissedReminders] = useState<string[]>([]);
-  const totalCandidates = mockCandidates.length;
-  const activeCandidates = mockCandidates.filter(c => c.status === 'active').length;
-  const totalInstructors = mockInstructors.length;
-  const totalVehicles = mockVehicles.length;
-  
-  const pendingPayments = mockCandidates.filter(c => c.paidAmount < c.totalFee).length;
-  const totalPending = mockCandidates.reduce((sum, c) => sum + (c.totalFee - c.paidAmount), 0);
-  
-  const upcomingExams = mockCandidates.filter(c => {
-    const currentPhase = c.phases.find(p => p.status === 'in_progress');
-    return currentPhase && currentPhase.sessionsCompleted >= currentPhase.sessionsPlan * 0.8;
-  });
-  
-  // Get weekly maintenance reminders (each Thursday)
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [upcomingSessions, setUpcomingSessions] = useState<Session[]>([]);
+  const [scheduledExams, setScheduledExams] = useState<ScheduledExam[]>([]);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
+      try {
+        const [statsRes, candidatesRes, vehiclesRes, instructorsRes, sessionsRes, examsRes] = await Promise.all([
+          dashboardApi.getStats(),
+          candidatesApi.getAll({ limit: 100 }),
+          vehiclesApi.getAll({ limit: 100 }),
+          instructorsApi.getAll({ limit: 100 }),
+          scheduleApi.getUpcoming(5),
+          examsApi.getUpcoming(10)
+        ]);
+
+        if (statsRes.success && statsRes.data) {
+          setStats(statsRes.data as DashboardStats);
+        }
+        if (candidatesRes.success && candidatesRes.data) {
+          // Handle both array and object response formats
+          const candidatesData = Array.isArray(candidatesRes.data)
+            ? candidatesRes.data
+            : (candidatesRes.data as { candidates?: Candidate[] }).candidates || [];
+          setCandidates(candidatesData as Candidate[]);
+        }
+        if (vehiclesRes.success && vehiclesRes.data) {
+          // Handle both array and object response formats
+          const vehiclesData = Array.isArray(vehiclesRes.data)
+            ? vehiclesRes.data
+            : (vehiclesRes.data as { vehicles?: Vehicle[] }).vehicles || [];
+          setVehicles(vehiclesData as Vehicle[]);
+        }
+        if (instructorsRes.success && instructorsRes.data) {
+          // Handle both array and object response formats
+          const instructorsData = Array.isArray(instructorsRes.data)
+            ? instructorsRes.data
+            : (instructorsRes.data as { instructors?: Instructor[] }).instructors || [];
+          setInstructors(instructorsData as Instructor[]);
+        }
+        if (sessionsRes.success && sessionsRes.data) {
+          // Handle both array and object response formats
+          const sessionsData = Array.isArray(sessionsRes.data)
+            ? sessionsRes.data
+            : (sessionsRes.data as { sessions?: Session[] }).sessions || [];
+          setUpcomingSessions(sessionsData as Session[]);
+        }
+        if (examsRes.success && examsRes.data) {
+          // Handle both array and object response formats
+          const examsData = Array.isArray(examsRes.data)
+            ? examsRes.data
+            : (examsRes.data as { exams?: ScheduledExam[] }).exams || [];
+          setScheduledExams(examsData as ScheduledExam[]);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Use actual scheduled exams from the API
+  const upcomingExams = scheduledExams.filter(e => e.status === 'scheduled');
+
+  // Get maintenance reminders - vehicles that haven't had maintenance since last Thursday
   const mostRecentThursday = getMostRecentThursday();
-  const thursdayDateStr = mostRecentThursday.toISOString().split('T')[0];
-  
-  const maintenanceReminders = mockVehicles
+  const nextThursday = getNextThursday();
+  const nextThursdayDateStr = nextThursday.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+
+  const maintenanceReminders = vehicles
     .filter(vehicle => {
-      // Check if vehicle has been dismissed
-      if (dismissedReminders.includes(vehicle.id)) {
+      if (dismissedReminders.includes(vehicle._id)) {
         return false;
       }
-      
-      // Check if there's a log for this Thursday or later
-      const hasRecentLog = vehicle.maintenanceLogs.some(log => {
+      // Check if vehicle has a maintenance log since the most recent Thursday
+      const hasRecentLog = vehicle.maintenanceLogs?.some(log => {
         const logDate = new Date(log.date);
+        logDate.setHours(0, 0, 0, 0);
         return logDate >= mostRecentThursday;
       });
-      
       return !hasRecentLog;
     })
     .map(vehicle => ({
       ...vehicle,
-      reminderDate: thursdayDateStr
+      reminderDate: nextThursdayDateStr
     }));
-  
-  const upcomingSessions = mockSessions.filter(s => s.status === 'scheduled').slice(0, 5);
-  
+
   const handleDismissReminder = (vehicleId: string) => {
     setDismissedReminders([...dismissedReminders, vehicleId]);
   };
 
-  const stats = [
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  const statCards = [
     {
       title: 'Total Candidates',
-      value: totalCandidates,
-      subtitle: `${activeCandidates} active`,
+      value: stats?.totalCandidates || 0,
+      subtitle: `Active candidates`,
       icon: Users,
       color: 'blue',
       onClick: () => onNavigate('candidates')
     },
     {
       title: 'Instructors',
-      value: totalInstructors,
+      value: stats?.totalInstructors || 0,
       subtitle: 'All active',
       icon: GraduationCap,
       color: 'green',
@@ -87,7 +220,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     },
     {
       title: 'Vehicles',
-      value: totalVehicles,
+      value: stats?.totalVehicles || 0,
       subtitle: `${maintenanceReminders.length} maintenance due`,
       icon: Car,
       color: 'purple',
@@ -95,8 +228,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     },
     {
       title: 'Pending Payments',
-      value: `${totalPending.toLocaleString()} DZD`,
-      subtitle: `${pendingPayments} candidates`,
+      value: `${(stats?.pendingPayments?.totalAmount || 0).toLocaleString()} DZD`,
+      subtitle: `${stats?.pendingPayments?.count || 0} payments`,
       icon: CreditCard,
       color: 'orange',
       onClick: () => onNavigate('payments')
@@ -107,11 +240,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     <div className="p-8 space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome back, Ahmed Benali</p>
+        <p className="text-gray-600">Welcome back, {user?.name || 'Admin'}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
             <Card 
@@ -147,19 +280,24 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             {upcomingExams.length === 0 ? (
               <p className="text-sm text-gray-500">No exams scheduled</p>
             ) : (
-              upcomingExams.map(candidate => {
-                const phase = candidate.phases.find(p => p.status === 'in_progress');
+              upcomingExams.map(exam => {
+                const candidateName = exam.candidateId && typeof exam.candidateId === 'object'
+                  ? exam.candidateId.name
+                  : 'Unknown Candidate';
+                const examDate = exam.date
+                  ? new Date(exam.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  : 'N/A';
+                const phaseLabel = exam.examType === 'highway_code' ? 'Highway Code' :
+                                   exam.examType === 'parking' ? 'Parking' : 'Driving';
                 return (
-                  <div key={candidate.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                  <div key={exam._id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                     <div>
-                      <div className="text-gray-900">{candidate.name}</div>
+                      <div className="text-gray-900">{candidateName}</div>
                       <p className="text-sm text-gray-600">
-                        {phase?.phase === 'highway_code' ? 'Highway Code' : 
-                         phase?.phase === 'parking' ? 'Parking' : 'Driving'} - 
-                        {phase?.sessionsCompleted}/{phase?.sessionsPlan} sessions
+                        {phaseLabel} Exam - {examDate} at {exam.time}
                       </p>
                     </div>
-                    <Badge variant="outline">Ready</Badge>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Scheduled</Badge>
                   </div>
                 );
               })
@@ -180,10 +318,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <p className="text-sm text-gray-500">All vehicles up to date</p>
             ) : (
               maintenanceReminders.map(vehicle => {
-                const instructor = mockInstructors.find(i => i.id === vehicle.instructorId);
-                
+                const instructor = instructors.find(i => i._id === vehicle.instructorId);
+
                 return (
-                  <div key={vehicle.id} className="flex items-start justify-between py-3 px-4 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div key={vehicle._id} className="flex items-start justify-between py-3 px-4 bg-orange-50 border border-orange-200 rounded-lg">
                     <div className="flex-1">
                       <div className="text-gray-900">{vehicle.brand} {vehicle.model}</div>
                       <p className="text-sm text-gray-600">{vehicle.licensePlate}</p>
@@ -197,7 +335,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDismissReminder(vehicle.id)}
+                      onClick={() => handleDismissReminder(vehicle._id)}
                       className="ml-2"
                     >
                       <X className="w-4 h-4" />
@@ -235,28 +373,38 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </tr>
             </thead>
             <tbody>
-              {upcomingSessions.map(session => {
-                const candidate = mockCandidates.find(c => c.id === session.candidateId);
-                const instructor = mockInstructors.find(i => i.id === session.instructorId);
-                return (
-                  <tr key={session.id} className="border-b border-gray-100 last:border-0">
-                    <td className="py-3 px-4 text-gray-900">{candidate?.name}</td>
-                    <td className="py-3 px-4 text-gray-700">{instructor?.name}</td>
-                    <td className="py-3 px-4">
-                      <Badge variant="outline">
-                        {session.phase === 'highway_code' ? 'Highway Code' :
-                         session.phase === 'parking' ? 'Parking' : 'Driving'}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-gray-700">{session.date} at {session.time}</td>
-                    <td className="py-3 px-4">
-                      <Badge className="bg-green-50 text-green-700 hover:bg-green-100">
-                        {session.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                );
-              })}
+              {upcomingSessions.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-4 text-center text-gray-500">No upcoming sessions</td>
+                </tr>
+              ) : (
+                upcomingSessions.map(session => {
+                  const candidateName = typeof session.candidateId === 'object' && session.candidateId !== null
+                    ? session.candidateId.name
+                    : candidates.find(c => c._id === session.candidateId)?.name;
+                  const instructorName = typeof session.instructorId === 'object' && session.instructorId !== null
+                    ? session.instructorId.name
+                    : instructors.find(i => i._id === session.instructorId)?.name;
+                  return (
+                    <tr key={session._id} className="border-b border-gray-100 last:border-0">
+                      <td className="py-3 px-4 text-gray-900">{candidateName || 'Unknown'}</td>
+                      <td className="py-3 px-4 text-gray-700">{instructorName || 'Unknown'}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="outline">
+                          {session.lessonType === 'highway_code' ? 'Highway Code' :
+                           session.lessonType === 'parking' ? 'Parking' : 'Driving'}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-gray-700">{new Date(session.date).toLocaleDateString()} at {session.time}</td>
+                      <td className="py-3 px-4">
+                        <Badge className="bg-green-50 text-green-700 hover:bg-green-100">
+                          {session.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

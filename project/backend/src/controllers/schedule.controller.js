@@ -123,6 +123,30 @@ export const addSchedule = asyncHandler(async (req, res, next) => {
         return next(new AppError('Instructor already has a lesson scheduled at this time', 400));
     }
 
+    // Check for candidate scheduling conflict - candidate can't have two sessions at the same time
+    const existingCandidateSchedule = await Schedule.findOne({
+        candidateId,
+        date: new Date(date),
+        time,
+        status: 'scheduled'
+    });
+
+    if (existingCandidateSchedule) {
+        return next(new AppError('Candidate already has a lesson scheduled at this time', 400));
+    }
+
+    // Check if candidate has reached the maximum sessions for this phase (10 sessions max, excluding cancelled)
+    const existingSessionsForPhase = await Schedule.countDocuments({
+        candidateId,
+        lessonType,
+        status: { $in: ['scheduled', 'completed'] }  // Don't count cancelled sessions
+    });
+
+    const MAX_SESSIONS_PER_PHASE = 10;
+    if (existingSessionsForPhase >= MAX_SESSIONS_PER_PHASE) {
+        return next(new AppError(`Candidate has already reached the maximum of ${MAX_SESSIONS_PER_PHASE} sessions for ${lessonType}. Cannot schedule more sessions for this phase.`, 400));
+    }
+
     const schedule = await Schedule.create({
         candidateId,
         instructorId,
@@ -168,7 +192,20 @@ export const updateSchedule = asyncHandler(async (req, res, next) => {
         });
 
         if (existingSchedule) {
-            return next(new AppError('Schedule conflict detected', 400));
+            return next(new AppError('Instructor schedule conflict detected', 400));
+        }
+
+        // Also check for candidate conflicts
+        const existingCandidateSchedule = await Schedule.findOne({
+            _id: { $ne: req.params.id },
+            candidateId: schedule.candidateId,
+            date: new Date(checkDate),
+            time: checkTime,
+            status: 'scheduled'
+        });
+
+        if (existingCandidateSchedule) {
+            return next(new AppError('Candidate schedule conflict detected', 400));
         }
     }
 
@@ -223,6 +260,48 @@ export const completeSchedule = asyncHandler(async (req, res, next) => {
 
     schedule.status = 'completed';
     await schedule.save();
+
+    // Update the candidate's phases.sessionsCompleted and sessionHistory
+    const candidate = await Candidate.findById(schedule.candidateId);
+    if (candidate) {
+        // Initialize phases if not present
+        if (!candidate.phases || candidate.phases.length === 0) {
+            candidate.phases = [
+                { phase: 'highway_code', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+                { phase: 'parking', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 },
+                { phase: 'driving', status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0 }
+            ];
+        }
+
+        // Initialize sessionHistory if not present
+        if (!candidate.sessionHistory) {
+            candidate.sessionHistory = [];
+        }
+
+        // Find the phase that matches the lesson type
+        const phaseIndex = candidate.phases.findIndex(p => p.phase === schedule.lessonType);
+
+        if (phaseIndex !== -1) {
+            // Increment sessionsCompleted for this phase
+            candidate.phases[phaseIndex].sessionsCompleted += 1;
+
+            // If this is the first session for this phase, mark it as in_progress
+            if (candidate.phases[phaseIndex].status === 'not_started') {
+                candidate.phases[phaseIndex].status = 'in_progress';
+            }
+        }
+
+        // Add to session history
+        candidate.sessionHistory.push({
+            id: schedule._id.toString(),
+            phase: schedule.lessonType,
+            date: schedule.date.toISOString().split('T')[0],
+            time: schedule.time,
+            status: 'completed'
+        });
+
+        await candidate.save();
+    }
 
     await schedule.populate([
         { path: 'candidateId', select: 'name email' },

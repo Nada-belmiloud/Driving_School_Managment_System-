@@ -5,8 +5,9 @@ import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
-import { GraduationCap, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { authApi } from '@/lib/api';
 
 interface ForgotPasswordViewProps {
   onBackToLogin: () => void;
@@ -17,16 +18,29 @@ export function ForgotPasswordView({ onBackToLogin }: ForgotPasswordViewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate sending reset email
-    setTimeout(() => {
+    try {
+      const result = await authApi.forgotPassword(email);
+
+      if (result.success) {
+        setEmailSent(true);
+        toast.success('Password reset instructions sent!');
+      } else {
+        // Still show success message to prevent email enumeration
+        setEmailSent(true);
+        toast.success('If an account exists, you will receive an email.');
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      // Still show success message to prevent email enumeration
       setEmailSent(true);
-      toast.success('Password reset instructions sent!');
+      toast.success('If an account exists, you will receive an email.');
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   if (emailSent) {
@@ -93,7 +107,14 @@ export function ForgotPasswordView({ onBackToLogin }: ForgotPasswordViewProps) {
               className="w-full bg-blue-600 hover:bg-blue-700"
               disabled={isLoading}
             >
-              {isLoading ? 'Sending...' : 'Send Reset Instructions'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Send Reset Instructions'
+              )}
             </Button>
 
             <Button

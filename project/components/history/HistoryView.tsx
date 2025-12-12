@@ -1,17 +1,70 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, GraduationCap, Calendar, DollarSign, BookOpen, CheckCircle, XCircle, Award } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, GraduationCap, Calendar, DollarSign, BookOpen, CheckCircle, XCircle, Award, Loader2 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { completedCandidates } from '../../lib/mockData';
-import { CompletedCandidate } from '../../types';
+import { candidatesApi } from '@/lib/api';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+
+interface CompletedCandidate {
+  _id: string;
+  id?: string;
+  name: string;
+  phone: string;
+  email: string;
+  licenseType?: string;
+  licenseCategory?: string;
+  registrationDate: string;
+  completionDate?: string;
+  updatedAt?: string;
+  paidAmount: number;
+  examHistory: Array<{ id: string; phase: string; date: string; passed: boolean; attemptNumber: number; notes?: string }>;
+  sessionHistory: Array<{ id: string; phase: string; date: string; time: string; status: string }>;
+  payments: Array<{ id: string; amount: number; date: string; note?: string }>;
+}
 
 export function HistoryView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState<CompletedCandidate | null>(null);
+  const [completedCandidates, setCompletedCandidates] = useState<CompletedCandidate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const result = await candidatesApi.getAll({ status: 'completed', limit: 100 });
+      if (result.success && result.data) {
+        // Handle both array and object response formats
+        const candidatesData = Array.isArray(result.data)
+          ? result.data
+          : (result.data as { candidates?: CompletedCandidate[] }).candidates || [];
+        // Transform data and filter for completed candidates
+        const completed = candidatesData.filter((c: any) => c.status === 'completed' || c.completionDate);
+        setCompletedCandidates(completed.map((c: any) => ({
+          ...c,
+          id: c._id,
+          licenseCategory: c.licenseType || c.licenseCategory || 'N/A',
+          // Use completionDate if available, otherwise use updatedAt for completed candidates
+          completionDate: c.completionDate || (c.status === 'completed' ? c.updatedAt : null),
+          examHistory: c.examHistory || [],
+          sessionHistory: c.sessionHistory || [],
+          payments: c.payments || []
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      toast.error('Failed to load history');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredCandidates = completedCandidates.filter(candidate =>
     candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -20,11 +73,20 @@ export function HistoryView() {
   );
 
   const totalGraduated = completedCandidates.length;
-  const avgExamAttempts = completedCandidates.reduce((sum, c) => 
-    sum + c.examHistory.length, 0) / completedCandidates.length;
-  const firstTryPassRate = completedCandidates.filter(c => 
-    c.examHistory.every(e => e.attemptNumber === 1)
-  ).length / completedCandidates.length * 100;
+  const avgExamAttempts = completedCandidates.length > 0
+    ? completedCandidates.reduce((sum, c) => sum + (c.examHistory?.length || 0), 0) / completedCandidates.length
+    : 0;
+  const firstTryPassRate = completedCandidates.length > 0
+    ? completedCandidates.filter(c => c.examHistory?.every(e => e.attemptNumber === 1)).length / completedCandidates.length * 100
+    : 0;
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -107,14 +169,15 @@ export function HistoryView() {
                 </tr>
               ) : (
                 filteredCandidates.map(candidate => {
-                  const duration = Math.ceil(
-                    (new Date(candidate.completionDate).getTime() - 
-                     new Date(candidate.registrationDate).getTime()) / 
+                  const completionDateStr = candidate.completionDate || '';
+                  const duration = completionDateStr ? Math.ceil(
+                    (new Date(completionDateStr).getTime() -
+                     new Date(candidate.registrationDate).getTime()) /
                     (1000 * 60 * 60 * 24)
-                  );
-                  
+                  ) : 0;
+
                   return (
-                    <tr key={candidate.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <tr key={candidate._id || candidate.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-4 px-4">
                         <div className="text-gray-900">{candidate.name}</div>
                         <p className="text-sm text-gray-500">{candidate.phone}</p>
@@ -126,7 +189,7 @@ export function HistoryView() {
                         {new Date(candidate.registrationDate).toLocaleDateString()}
                       </td>
                       <td className="py-4 px-4 text-sm text-gray-600">
-                        {new Date(candidate.completionDate).toLocaleDateString()}
+                        {candidate.completionDate ? new Date(candidate.completionDate).toLocaleDateString() : 'N/A'}
                       </td>
                       <td className="py-4 px-4 text-sm text-gray-600">
                         {duration} days
@@ -173,7 +236,7 @@ export function HistoryView() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Completion Date</p>
-                  <div className="text-gray-900">{new Date(selectedCandidate.completionDate).toLocaleDateString()}</div>
+                  <div className="text-gray-900">{selectedCandidate.completionDate ? new Date(selectedCandidate.completionDate).toLocaleDateString() : 'N/A'}</div>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">License Category</p>
@@ -196,11 +259,14 @@ export function HistoryView() {
                 </div>
                 <div className="text-center">
                   <div className="text-blue-900">
-                    {Math.ceil(
-                      (new Date(selectedCandidate.completionDate).getTime() - 
-                       new Date(selectedCandidate.registrationDate).getTime()) / 
-                      (1000 * 60 * 60 * 24)
-                    )} days
+                    {(() => {
+                      const completionDate = selectedCandidate.completionDate || '';
+                      return completionDate ? Math.ceil(
+                        (new Date(completionDate).getTime() -
+                         new Date(selectedCandidate.registrationDate).getTime()) /
+                        (1000 * 60 * 60 * 24)
+                      ) : 0;
+                    })()} days
                   </div>
                   <p className="text-sm text-blue-700">Training Duration</p>
                 </div>

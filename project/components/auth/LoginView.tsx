@@ -7,6 +7,7 @@ import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { Car, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
 interface LoginViewProps {
   onLogin: () => void;
@@ -14,28 +15,33 @@ interface LoginViewProps {
 }
 
 export function LoginView({ onLogin, onForgotPassword }: LoginViewProps) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    // Simulate a small delay for authentication
-    setTimeout(() => {
-      // Simple authentication - in a real app, this would be server-side
-      if (username === 'manager' && password === 'admin123') {
+    try {
+      const success = await login({ email, password });
+
+      if (success) {
         toast.success('Login successful!');
         onLogin();
       } else {
-        setError('Invalid username or password');
+        setError('Invalid email or password');
         toast.error('Login failed');
       }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
+      toast.error('Login failed');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -52,13 +58,13 @@ export function LoginView({ onLogin, onForgotPassword }: LoginViewProps) {
         <Card className="p-8 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 autoFocus
               />
@@ -104,7 +110,7 @@ export function LoginView({ onLogin, onForgotPassword }: LoginViewProps) {
           <div className="mt-6 pt-6 border-t border-gray-200">
             <div className="text-sm text-gray-600 space-y-1">
               <p><span className="font-medium">Demo Credentials:</span></p>
-              <p>Username: <code className="bg-gray-100 px-2 py-0.5 rounded">manager</code></p>
+              <p>Email: <code className="bg-gray-100 px-2 py-0.5 rounded">admin@drivingschool.com</code></p>
               <p>Password: <code className="bg-gray-100 px-2 py-0.5 rounded">admin123</code></p>
             </div>
           </div>

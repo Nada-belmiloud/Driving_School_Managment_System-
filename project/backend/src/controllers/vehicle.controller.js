@@ -34,6 +34,18 @@ export const getVehicles = asyncHandler(async (req, res, next) => {
         .skip(skip)
         .limit(limit);
 
+    // Fetch maintenance logs for each vehicle
+    const vehiclesWithLogs = await Promise.all(
+        vehicles.map(async (vehicle) => {
+            const logs = await MaintenanceLog.find({ vehicleId: vehicle._id }).sort('-date');
+            const vehicleObj = vehicle.toObject();
+            return {
+                ...vehicleObj,
+                maintenanceLogs: logs
+            };
+        })
+    );
+
     const total = await Vehicle.countDocuments(query);
 
     res.status(200).json({
@@ -45,7 +57,7 @@ export const getVehicles = asyncHandler(async (req, res, next) => {
             total,
             pages: Math.ceil(total / limit)
         },
-        data: vehicles
+        data: vehiclesWithLogs
     });
 });
 
@@ -327,6 +339,34 @@ export const updateMaintenanceLog = asyncHandler(async (req, res, next) => {
         success: true,
         data: log,
         message: 'Maintenance log updated successfully'
+    });
+});
+
+// @desc    Delete maintenance log
+// @route   DELETE /api/v1/vehicles/:id/maintenance-logs/:logId
+// @access  Private
+export const deleteMaintenanceLog = asyncHandler(async (req, res, next) => {
+    const vehicle = await Vehicle.findById(req.params.id);
+
+    if (!vehicle) {
+        return next(new AppError('Vehicle not found', 404));
+    }
+
+    const log = await MaintenanceLog.findOne({
+        _id: req.params.logId,
+        vehicleId: req.params.id
+    });
+
+    if (!log) {
+        return next(new AppError('Maintenance log not found', 404));
+    }
+
+    await MaintenanceLog.findByIdAndDelete(req.params.logId);
+
+    res.status(200).json({
+        success: true,
+        data: {},
+        message: 'Maintenance log deleted successfully'
     });
 });
 

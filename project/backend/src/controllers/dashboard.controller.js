@@ -2,7 +2,6 @@
 import Candidate from "../models/candidate.model.js";
 import Instructor from "../models/instructor.model.js";
 import Vehicle from "../models/vehicle.model.js";
-import Payment from "../models/payment.model.js";
 import { asyncHandler } from "../middleware/error.middleware.js";
 
 // @desc    Get dashboard statistics
@@ -25,14 +24,26 @@ export const getDashboardStats = asyncHandler(async (req, res, next) => {
         // Total vehicles (excluding retired)
         Vehicle.countDocuments({ status: { $ne: 'retired' } }),
 
-        // Pending payments count and total amount
-        Payment.aggregate([
-            { $match: { status: 'pending' } },
+        // Calculate pending payments from candidates with remaining balance
+        Candidate.aggregate([
+            { $match: { status: { $ne: 'deleted' } } },
+            {
+                $project: {
+                    totalFee: { $ifNull: ['$totalFee', 34000] },
+                    paidAmount: { $ifNull: ['$paidAmount', 0] }
+                }
+            },
+            {
+                $project: {
+                    remainingAmount: { $subtract: ['$totalFee', '$paidAmount'] }
+                }
+            },
+            { $match: { remainingAmount: { $gt: 0 } } },
             {
                 $group: {
                     _id: null,
                     count: { $sum: 1 },
-                    totalAmount: { $sum: '$amount' }
+                    totalAmount: { $sum: '$remainingAmount' }
                 }
             }
         ])

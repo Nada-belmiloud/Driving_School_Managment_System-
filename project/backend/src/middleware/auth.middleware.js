@@ -42,16 +42,28 @@ export const validateLogin = (req, res, next) => {
 
 // Validate candidate (renamed from student)
 export const validateCandidate = (req, res, next) => {
-    const { name, email, phone, licenseType } = req.body;
+    // Only require all fields for POST (create), not for PUT (update)
+    if (req.method === 'POST') {
+        const { name, email, phone, licenseType } = req.body;
 
-    if (!name || !email || !phone || !licenseType) {
-        return next(new AppError('Please provide all required fields (name, email, phone, licenseType)', 400));
-    }
+        if (!name || !email || !phone || !licenseType) {
+            return next(new AppError('Please provide all required fields (name, email, phone, licenseType)', 400));
+        }
 
-    // Validate license type
-    const validLicenseTypes = ['A1', 'A2', 'B', 'C1', 'C2', 'D'];
-    if (!validLicenseTypes.includes(licenseType)) {
-        return next(new AppError('License type must be A1, A2, B, C1, C2, or D', 400));
+        // Validate license type
+        const validLicenseTypes = ['A1', 'A2', 'B', 'C1', 'C2', 'D'];
+        if (!validLicenseTypes.includes(licenseType)) {
+            return next(new AppError('License type must be A1, A2, B, C1, C2, or D', 400));
+        }
+    } else if (req.method === 'PUT') {
+        // For updates, validate licenseType only if provided
+        const { licenseType } = req.body;
+        if (licenseType) {
+            const validLicenseTypes = ['A1', 'A2', 'B', 'C1', 'C2', 'D'];
+            if (!validLicenseTypes.includes(licenseType)) {
+                return next(new AppError('License type must be A1, A2, B, C1, C2, or D', 400));
+            }
+        }
     }
 
     next();

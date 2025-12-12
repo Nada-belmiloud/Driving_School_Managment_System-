@@ -1,13 +1,40 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Search, Trash2, Car, X } from 'lucide-react';
-import { mockVehicles, mockInstructors } from '@/lib/mockData';
-import type { Vehicle, MaintenanceLog, Instructor } from '@/types';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Trash2, Car, X, Loader2 } from 'lucide-react';
+import { vehiclesApi, instructorsApi } from '@/lib/api';
+import { toast } from 'sonner';
+
+interface MaintenanceLog {
+  _id?: string;
+  id?: string;
+  date: string;
+  description: string;
+  type?: string;
+  cost?: number;
+}
+
+interface Vehicle {
+  _id: string;
+  id?: string;
+  brand: string;
+  model: string;
+  licensePlate: string;
+  instructorId?: string;
+  assignedInstructor?: string | { _id: string; name: string; email?: string; phone?: string };
+  maintenanceLogs: MaintenanceLog[];
+}
+
+interface Instructor {
+  _id: string;
+  id?: string;
+  name: string;
+}
 
 export function VehiclesList() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(mockVehicles);
-  const [instructors] = useState<Instructor[]>(mockInstructors);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddVehicleModalOpen, setIsAddVehicleModalOpen] = useState(false);
   const [isAddMaintenanceModalOpen, setIsAddMaintenanceModalOpen] = useState(false);
@@ -26,15 +53,59 @@ export function VehiclesList() {
     description: ''
   });
 
-  const getInstructorName = (instructorId?: string): string => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [vehiclesRes, instructorsRes] = await Promise.all([
+        vehiclesApi.getAll({ limit: 100 }),
+        instructorsApi.getAll({ limit: 100 })
+      ]);
+
+      if (vehiclesRes.success && vehiclesRes.data) {
+        // Handle both array and object response formats
+        const vehiclesData = Array.isArray(vehiclesRes.data)
+          ? vehiclesRes.data
+          : (vehiclesRes.data as { vehicles?: Vehicle[] }).vehicles || [];
+        setVehicles(vehiclesData as Vehicle[]);
+      }
+      if (instructorsRes.success && instructorsRes.data) {
+        // Handle both array and object response formats
+        const instructorsData = Array.isArray(instructorsRes.data)
+          ? instructorsRes.data
+          : (instructorsRes.data as { instructors?: Instructor[] }).instructors || [];
+        setInstructors(instructorsData as Instructor[]);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load vehicles');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getInstructorName = (vehicle: Vehicle): string => {
+    // Handle populated assignedInstructor object
+    if (vehicle.assignedInstructor && typeof vehicle.assignedInstructor === 'object') {
+      return vehicle.assignedInstructor.name;
+    }
+    
+    // Handle assignedInstructor as ID string or fall back to instructorId
+    const instructorId = typeof vehicle.assignedInstructor === 'string' 
+      ? vehicle.assignedInstructor 
+      : vehicle.instructorId;
+    
     if (!instructorId) return 'Unassigned';
-    const instructor = instructors.find(i => i.id === instructorId);
+    const instructor = instructors.find(i => i._id === instructorId || i.id === instructorId);
     return instructor ? instructor.name : 'Unassigned';
   };
 
   const filteredVehicles = vehicles.filter(vehicle => {
     const query = searchQuery.toLowerCase();
-    const instructorName = getInstructorName(vehicle.instructorId);
+    const instructorName = getInstructorName(vehicle);
     return (
       vehicle.brand.toLowerCase().includes(query) ||
       vehicle.model.toLowerCase().includes(query) ||
@@ -43,54 +114,77 @@ export function VehiclesList() {
     );
   });
 
-  const handleAddVehicle = () => {
+  const handleAddVehicle = async () => {
     if (!vehicleFormData.brand || !vehicleFormData.model || !vehicleFormData.licensePlate) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields');
       return;
     }
 
-    const newVehicle: Vehicle = {
-      id: String(vehicles.length + 1),
-      brand: vehicleFormData.brand,
-      model: vehicleFormData.model,
-      licensePlate: vehicleFormData.licensePlate,
-      instructorId: vehicleFormData.instructorId || undefined,
-      maintenanceLogs: []
-    };
+    try {
+      const result = await vehiclesApi.create({
+        brand: vehicleFormData.brand,
+        model: vehicleFormData.model,
+        licensePlate: vehicleFormData.licensePlate
+      });
 
-    setVehicles([...vehicles, newVehicle]);
-    setIsAddVehicleModalOpen(false);
-    setVehicleFormData({ brand: '', model: '', licensePlate: '', instructorId: '' });
-  };
-
-  const handleAddMaintenanceLog = () => {
-    if (!maintenanceFormData.date || !maintenanceFormData.description || !selectedVehicle) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
-    const newLog: MaintenanceLog = {
-      id: `m${Date.now()}`,
-      date: maintenanceFormData.date,
-      description: maintenanceFormData.description
-    };
-
-    const updatedVehicles = vehicles.map(vehicle => {
-      if (vehicle.id === selectedVehicle.id) {
-        return { ...vehicle, maintenanceLogs: [newLog, ...vehicle.maintenanceLogs] };
+      if (result.success) {
+        toast.success('Vehicle added successfully');
+        // Assign instructor if selected
+        if (vehicleFormData.instructorId && result.data) {
+          await vehiclesApi.assignInstructor((result.data as { _id: string })._id, vehicleFormData.instructorId);
+        }
+        fetchData();
+        setIsAddVehicleModalOpen(false);
+        setVehicleFormData({ brand: '', model: '', licensePlate: '', instructorId: '' });
+      } else {
+        toast.error(result.error || 'Failed to add vehicle');
       }
-      return vehicle;
-    });
-
-    setVehicles(updatedVehicles);
-    setIsAddMaintenanceModalOpen(false);
-    setSelectedVehicle(null);
-    setMaintenanceFormData({ date: '', description: '' });
+    } catch (error) {
+      toast.error('Failed to add vehicle');
+    }
   };
 
-  const confirmDeleteVehicle = () => {
+  const handleAddMaintenanceLog = async () => {
+    if (!maintenanceFormData.date || !maintenanceFormData.description || !selectedVehicle) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const result = await vehiclesApi.addMaintenanceLog(selectedVehicle._id, {
+        type: 'general',
+        description: maintenanceFormData.description,
+        cost: 0,
+        date: maintenanceFormData.date
+      });
+
+      if (result.success) {
+        toast.success('Maintenance log added successfully');
+        fetchData();
+        setIsAddMaintenanceModalOpen(false);
+        setSelectedVehicle(null);
+        setMaintenanceFormData({ date: '', description: '' });
+      } else {
+        toast.error(result.error || 'Failed to add maintenance log');
+      }
+    } catch (error) {
+      toast.error('Failed to add maintenance log');
+    }
+  };
+
+  const confirmDeleteVehicle = async () => {
     if (vehicleToDelete) {
-      setVehicles(vehicles.filter(v => v.id !== vehicleToDelete.id));
+      try {
+        const result = await vehiclesApi.delete(vehicleToDelete._id);
+        if (result.success) {
+          toast.success('Vehicle deleted successfully');
+          fetchData();
+        } else {
+          toast.error(result.error || 'Failed to delete vehicle');
+        }
+      } catch (error) {
+        toast.error('Failed to delete vehicle');
+      }
       setVehicleToDelete(null);
       setIsDeleteModalOpen(false);
     }
@@ -106,6 +200,33 @@ export function VehiclesList() {
     setVehicleToDelete(vehicle);
     setIsDeleteModalOpen(true);
   };
+
+  const handleDeleteMaintenanceLog = async (vehicleId: string, logId: string | undefined) => {
+    if (!logId) {
+      toast.error('Cannot delete log: Invalid log ID');
+      return;
+    }
+
+    try {
+      const result = await vehiclesApi.deleteMaintenanceLog(vehicleId, logId);
+      if (result.success) {
+        toast.success('Maintenance log deleted');
+        fetchData();
+      } else {
+        toast.error(result.error || 'Failed to delete maintenance log');
+      }
+    } catch (error) {
+      toast.error('Failed to delete maintenance log');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -145,7 +266,7 @@ export function VehiclesList() {
         {/* Vehicles List */}
         <div className="space-y-6">
           {filteredVehicles.map((vehicle) => (
-            <div key={vehicle.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <div key={vehicle._id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               {/* Vehicle Header */}
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-start justify-between">
@@ -159,7 +280,7 @@ export function VehiclesList() {
                       </h3>
                       <p className="text-sm text-gray-500 mt-0.5">{vehicle.licensePlate}</p>
                       <p className="text-sm text-gray-600 mt-1">
-                        Assigned to: <span className="font-medium">{getInstructorName(vehicle.instructorId)}</span>
+                        Assigned to: <span className="font-medium">{getInstructorName(vehicle)}</span>
                       </p>
                     </div>
                   </div>
@@ -185,18 +306,31 @@ export function VehiclesList() {
                   </button>
                 </div>
 
-                {vehicle.maintenanceLogs.length > 0 ? (
+                {(vehicle.maintenanceLogs?.length || 0) > 0 ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-12 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider pb-2 border-b">
                       <div className="col-span-2">Date</div>
-                      <div className="col-span-10">Description</div>
+                      <div className="col-span-8">Description</div>
+                      <div className="col-span-2 text-right">Actions</div>
                     </div>
-                    {vehicle.maintenanceLogs.map((log) => (
-                      <div key={log.id} className="grid grid-cols-12 gap-4 text-sm py-2 border-b border-gray-100 last:border-0">
-                        <div className="col-span-2 text-gray-900">{log.date}</div>
-                        <div className="col-span-10 text-gray-600">{log.description}</div>
-                      </div>
-                    ))}
+                    {vehicle.maintenanceLogs.map((log) => {
+                      const formattedDate = log.date ? new Date(log.date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : 'N/A';
+                      return (
+                        <div key={log._id || log.id} className="grid grid-cols-12 gap-4 text-sm py-2 border-b border-gray-100 last:border-0 items-center">
+                          <div className="col-span-2 text-gray-900">{formattedDate}</div>
+                          <div className="col-span-8 text-gray-600">{log.description}</div>
+                          <div className="col-span-2 flex justify-end gap-2">
+                            <button
+                              onClick={() => handleDeleteMaintenanceLog(vehicle._id, log._id || log.id)}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              title="Delete log"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500 text-center py-4">No maintenance logs yet</p>
@@ -265,7 +399,7 @@ export function VehiclesList() {
                     className="w-full border border-gray-300 rounded-md p-2 bg-white"
                   >
                     <option value="">Unassigned</option>
-                    {instructors.map((ins) => <option key={ins.id} value={ins.id}>{ins.name}</option>)}
+                    {instructors.map((ins) => <option key={ins._id} value={ins._id}>{ins.name}</option>)}
                   </select>
                 </div>
               </form>

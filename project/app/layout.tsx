@@ -1,4 +1,5 @@
 import { Toaster } from '@/components/ui/sonner';
+import { AuthProvider } from '@/context/AuthContext';
 import './globals.css';
 
 export default function RootLayout({
@@ -9,8 +10,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="h-full">
-        {children}
-        <Toaster />
+        <AuthProvider>
+          {children}
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

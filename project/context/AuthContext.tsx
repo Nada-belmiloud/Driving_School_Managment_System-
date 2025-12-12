@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { User, LoginCredentials, AuthState } from '../types/auth'
-import { authenticateUser, getManagerData } from '@/lib/data/dummyData'
+import { authApi } from '@/lib/api'
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<boolean>
@@ -23,13 +23,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }))
       
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const isAuthenticated = authenticateUser(credentials.username, credentials.password)
-      
-      if (isAuthenticated) {
-        const user = getManagerData()
-        
+      console.log('Attempting login with:', credentials.email)
+      const result = await authApi.login(credentials.email, credentials.password)
+      console.log('Login API result:', result)
+
+      if (result.success && result.data) {
+        const user: User = {
+          id: result.data.id,
+          name: result.data.name,
+          email: result.data.email
+        }
+
         setAuthState({
           user,
           isAuthenticated: true,
@@ -41,27 +45,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true
       }
       
+      console.log('Login failed - result.success:', result.success, 'result.error:', result.error)
       setAuthState(prev => ({ ...prev, isLoading: false }))
       return false
     } catch (error) {
+      console.error('Login error:', error)
       setAuthState(prev => ({ ...prev, isLoading: false }))
       return false
     }
   }
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authApi.logout()
+    } catch (error) {
+      // Still logout locally even if API call fails
+    }
     setAuthState({
       user: null,
       isAuthenticated: false,
       isLoading: false
     })
     localStorage.removeItem('user')
+    localStorage.removeItem('token')
     router.push('/login')
   }
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user')
-    if (storedUser) {
+    const storedToken = localStorage.getItem('token')
+    if (storedUser && storedToken) {
       const user = JSON.parse(storedUser)
       setAuthState({
         user,

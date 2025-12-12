@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { mockCandidates } from '@/lib/mockData'; 
+import { candidatesApi } from '@/lib/api';
 import { Candidate, Document, PhaseProgress, Phase, PhaseStatus } from '@/types';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 
 interface CandidateDetailsProps {
   candidateId: string;
@@ -23,7 +25,8 @@ export function CandidateDetails({
   onAddExamResult 
 }: CandidateDetailsProps) {
   
-  const candidate = mockCandidates.find(c => c.id === candidateId) as Candidate | undefined;
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // 1. STATE FOR MODALS AND INLINE EDITING
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -33,7 +36,62 @@ export function CandidateDetails({
   
   // State for inline document editing
   const [isEditingDocuments, setIsEditingDocuments] = useState(false);
-  const [editedDocuments, setEditedDocuments] = useState<Document[]>(candidate?.documents || []);
+  const [editedDocuments, setEditedDocuments] = useState<Document[]>([]);
+
+  useEffect(() => {
+    fetchCandidate();
+  }, [candidateId]);
+
+  const fetchCandidate = async () => {
+    setIsLoading(true);
+    try {
+      const result = await candidatesApi.getById(candidateId);
+      if (result.success && result.data) {
+        const candidateData = (result.data as { candidate: any }).candidate || result.data;
+
+        // Calculate age from dateOfBirth
+        let calculatedAge = 0;
+        if (candidateData.dateOfBirth) {
+          const birthDate = new Date(candidateData.dateOfBirth);
+          const today = new Date();
+          calculatedAge = today.getFullYear() - birthDate.getFullYear();
+          const monthDiff = today.getMonth() - birthDate.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            calculatedAge--;
+          }
+        }
+
+        // Transform MongoDB _id to id and map fields
+        const transformed = {
+          ...candidateData,
+          id: candidateData._id || candidateData.id,
+          age: candidateData.age || calculatedAge,
+          licenseCategory: candidateData.licenseCategory || candidateData.licenseType,
+          registrationDate: candidateData.registrationDate || candidateData.createdAt,
+          documents: candidateData.documents || [],
+          phases: candidateData.phases || [],
+          payments: candidateData.payments || [],
+          examHistory: candidateData.examHistory || [],
+          sessionHistory: candidateData.sessionHistory || []
+        };
+        setCandidate(transformed as Candidate);
+        setEditedDocuments(transformed.documents);
+      }
+    } catch (error) {
+      console.error('Error fetching candidate:', error);
+      toast.error('Failed to load candidate details');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   if (!candidate) {
     return <div className="p-8">Candidate not found</div>;
@@ -49,12 +107,19 @@ export function CandidateDetails({
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
-    // API call/data removal would go here.
-    console.log(`Deleting candidate with ID: ${candidateId}`);
+  const handleDeleteConfirm = async () => {
+    try {
+      const result = await candidatesApi.delete(candidateId);
+      if (result.success) {
+        toast.success('Candidate deleted successfully');
+        onClose();
+      } else {
+        toast.error(result.error || 'Failed to delete candidate');
+      }
+    } catch (error) {
+      toast.error('Failed to delete candidate');
+    }
     setIsDeleteModalOpen(false);
-    onClose(); 
-    alert(`Candidate ${candidate.name} has been deleted (Simulated).`);
   };
 
   // --- Exam Result Handlers ---
@@ -63,7 +128,7 @@ export function CandidateDetails({
     setIsExamResultModalOpen(true);
   };
 
-  const handleExamResultSubmit = () => {
+  const handleExamResultSubmit = async () => {
     const currentPhase = candidate.phases.find(p => p.phase === currentExamPhase);
     
     if (!currentPhase) {
@@ -146,11 +211,17 @@ export function CandidateDetails({
     setIsEditingDocuments(false);
   };
   
-  const handleSaveChanges = () => {
+  const handleSaveChanges = async () => {
     // Call the prop function to update the main data source
     onUpdateCandidate(candidate.id, { documents: editedDocuments });
     
-    console.log('Documents saved and update function called.');
+    // Update local state immediately
+    setCandidate({
+      ...candidate,
+      documents: editedDocuments
+    });
+
+    toast.success('Documents updated successfully');
     setIsEditingDocuments(false);
   };
 

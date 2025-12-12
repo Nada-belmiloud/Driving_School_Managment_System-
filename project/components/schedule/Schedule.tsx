@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Calendar,
   Clock,
@@ -11,16 +11,58 @@ import {
   ChevronRight,
   Info,
   X,
-  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 
-// NOTE: Assuming '@/types' and '@/lib/mockData' are correctly configured in your project.
-import type { Candidate, Session, Instructor, Phase } from "@/types";
-import {
-  mockCandidates,
-  mockSessions,
-  mockInstructors,
-} from "@/lib/mockData";
+import type { Phase } from "@/types";
+import { scheduleApi, candidatesApi, instructorsApi, examsApi } from "@/lib/api";
+import { toast } from "sonner";
+
+// --- Interfaces for API data ---
+interface Candidate {
+  _id: string;
+  id?: string;
+  name: string;
+  phases?: Array<{
+    phase: Phase;
+    status: string;
+    sessionsCompleted: number;
+    sessionsPlan: number;
+    examDate?: string;
+    examPassed?: boolean;
+    examAttempts: number;
+  }>;
+  sessionHistory?: Array<{ status: string }>;
+}
+
+interface Instructor {
+  _id: string;
+  id?: string;
+  name: string;
+}
+
+interface Session {
+  _id: string;
+  id?: string;
+  candidateId: string | { _id: string; name: string };
+  instructorId: string | { _id: string; name: string };
+  lessonType: Phase;
+  phase?: Phase;
+  date: string;
+  time: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+}
+
+interface Exam {
+  _id: string;
+  id?: string;
+  candidateId: string | { _id: string; name: string };
+  instructorId?: string | { _id: string; name: string };
+  examType: Phase;
+  date: string;
+  time: string;
+  status: 'scheduled' | 'passed' | 'failed' | 'cancelled';
+}
 
 // --- Constants ---
 const phaseLabels: Record<Phase, string> = {
@@ -31,12 +73,13 @@ const phaseLabels: Record<Phase, string> = {
 
 // --- Main Component ---
 export function ScheduleComponent() {
-  // Initialize sessions from imported mockData
-  const [sessions, setSessions] = useState<Session[]>(mockSessions);
-  // Exams local state (newly scheduled exams stored here)
-  const [exams, setExams] = useState<
-    { id: string; candidateId: string; phase: string; date: string; time: string; status?: string }[]
-  >([]);
+  // State for API data
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   // UI State
   const [activeTab, setActiveTab] = useState<"training" | "exams">("training");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -47,45 +90,225 @@ export function ScheduleComponent() {
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showExamModal, setShowExamModal] = useState(false);
 
-  // Helper functions using imported data
+  // Fetch data on mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [sessionsRes, candidatesRes, instructorsRes, examsRes] = await Promise.all([
+        scheduleApi.getAll({ limit: 100 }),
+        candidatesApi.getAll({ limit: 100 }),
+        instructorsApi.getAll({ limit: 100 }),
+        examsApi.getAll({ limit: 100 })
+      ]);
+
+      if (sessionsRes.success && sessionsRes.data) {
+        // Handle both array and object response formats (backend returns data as array or data.schedules)
+        const sessionsData = Array.isArray(sessionsRes.data)
+          ? sessionsRes.data
+          : (sessionsRes.data as { sessions?: Session[]; schedules?: Session[] }).sessions
+            || (sessionsRes.data as { schedules?: Session[] }).schedules
+            || [];
+        setSessions(sessionsData as Session[]);
+      }
+      if (candidatesRes.success && candidatesRes.data) {
+        // Handle both array and object response formats
+        const candidatesData = Array.isArray(candidatesRes.data)
+          ? candidatesRes.data
+          : (candidatesRes.data as { candidates?: Candidate[] }).candidates || [];
+        setCandidates(candidatesData as Candidate[]);
+      }
+      if (instructorsRes.success && instructorsRes.data) {
+        // Handle both array and object response formats
+        const instructorsData = Array.isArray(instructorsRes.data)
+          ? instructorsRes.data
+          : (instructorsRes.data as { instructors?: Instructor[] }).instructors || [];
+        setInstructors(instructorsData as Instructor[]);
+      }
+      if (examsRes.success && examsRes.data) {
+        // Handle both array and object response formats
+        const examsData = Array.isArray(examsRes.data)
+          ? examsRes.data
+          : (examsRes.data as { exams?: Exam[] }).exams || [];
+        setExams(examsData as Exam[]);
+      }
+    } catch (error) {
+      console.error('Error fetching schedule data:', error);
+      toast.error('Failed to load schedule');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper functions using fetched data
   const getCandidateInfo = (candidateId: string): Candidate | undefined =>
-    mockCandidates.find((c) => c.id === candidateId);
+    candidates.find((c) => c._id === candidateId || c.id === candidateId);
 
   const getInstructorName = (instructorId: string): string => {
-    const instructor = mockInstructors.find((i) => i.id === instructorId);
+    const instructor = instructors.find((i) => i._id === instructorId || i.id === instructorId);
     return instructor?.name || "Unknown";
   };
   
   const getCandidateCompletedSessions = (candidateId: string): Session[] => {
-    return mockCandidates.find(c => c.id === candidateId)?.sessionHistory?.filter(s => s.status === 'completed') || [];
+    // Get completed sessions from the sessions state (Schedule collection)
+    return sessions.filter((s) => {
+      const sessionCandidateId = s.candidateId && typeof s.candidateId === 'object'
+        ? s.candidateId._id
+        : s.candidateId;
+      return sessionCandidateId === candidateId && s.status === 'completed';
+    });
   };
 
-  const getCandidateExamHistory = (candidateId: string) => {
-    const candidate = mockCandidates.find(c => c.id === candidateId);
+  const getCandidateExamHistory = (candidateId: string): {
+    phase: string;
+    lastExamDate: string;
+    results: string;
+    attempts: number;
+    waitingStatus: string;
+    currentPhaseStatus: string;
+    sessionsCompleted: number;
+    hasFailed: boolean;
+    hasScheduledExam: boolean;
+  }[] => {
+    const candidate = candidates.find(c => c._id === candidateId || c.id === candidateId);
     if (!candidate) return [];
-    
-    return candidate.phases.map(phase => {
-        // Determine 15-day status (simplified logic for UI display)
-        const lastExamDate = phase.examDate ? new Date(phase.examDate) : null;
+
+    // Initialize phases from candidate or with defaults
+    const phases = candidate.phases && candidate.phases.length > 0
+      ? candidate.phases
+      : [
+          { phase: 'highway_code' as Phase, status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0, examDate: undefined, lastExamDate: undefined },
+          { phase: 'parking' as Phase, status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0, examDate: undefined, lastExamDate: undefined },
+          { phase: 'driving' as Phase, status: 'not_started', sessionsCompleted: 0, sessionsPlan: 10, examPassed: false, examAttempts: 0, examDate: undefined, lastExamDate: undefined }
+        ];
+
+    // Count completed sessions from the sessions state
+    const sessionCounts: Record<string, number> = {
+      highway_code: 0,
+      parking: 0,
+      driving: 0
+    };
+
+    sessions.forEach(session => {
+      const sessionCandidateId = session.candidateId && typeof session.candidateId === 'object'
+        ? session.candidateId._id
+        : session.candidateId;
+      if (sessionCandidateId === candidateId && session.status === 'completed') {
+        const lessonType = session.lessonType || session.phase;
+        if (lessonType && sessionCounts.hasOwnProperty(lessonType)) {
+          sessionCounts[lessonType]++;
+        }
+      }
+    });
+
+    // Get exam info from exams state
+    const candidateExams = exams.filter(exam => {
+      const examCandidateId = exam.candidateId && typeof exam.candidateId === 'object'
+        ? exam.candidateId._id
+        : exam.candidateId;
+      return examCandidateId === candidateId;
+    });
+
+    return phases.map(phase => {
+        // Get exam info for this phase from exams state
+        const phaseExams = candidateExams.filter(e => e.examType === phase.phase);
+        const passedExam = phaseExams.find(e => e.status === 'passed');
+        const failedExams = phaseExams.filter(e => e.status === 'failed');
+        const scheduledExam = phaseExams.find(e => e.status === 'scheduled');
+
+        // Get the last completed exam (passed or failed, not scheduled)
+        const completedExams = phaseExams.filter(e => e.status === 'passed' || e.status === 'failed');
+        const lastCompletedExam = completedExams.length > 0 ? completedExams[completedExams.length - 1] : null;
+
+        // Use actual session count from sessions state, capped at sessionsPlan (10)
+        const rawSessionsCompleted = sessionCounts[phase.phase] || phase.sessionsCompleted || 0;
+        const sessionsPlan = phase.sessionsPlan || 10;
+        const actualSessionsCompleted = Math.min(rawSessionsCompleted, sessionsPlan);
+
+        // Determine exam results - only from actual completed exams
+        const examPassed = passedExam ? true : (phase.examPassed || false);
+        const hasFailed = failedExams.length > 0;
+
+        // Exam attempts = number of completed exams (passed or failed)
+        const examAttempts = completedExams.length > 0 ? completedExams.length : (phase.examAttempts || 0);
+
+        // Determine result and date based on actual exam status
+        let examResult = 'N/A';
+        let lastExamDateFormatted = 'N/A';
+
+        if (examPassed) {
+            examResult = 'Passed';
+            const passedDate = lastCompletedExam?.date || phase.examDate;
+            lastExamDateFormatted = passedDate
+              ? new Date(passedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+              : 'N/A';
+        } else if (hasFailed) {
+            examResult = 'Failed';
+            const failedDate = lastCompletedExam?.date;
+            lastExamDateFormatted = failedDate
+              ? new Date(failedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+              : 'N/A';
+        } else if (scheduledExam) {
+            examResult = 'Scheduled';
+            // For scheduled exams, show the scheduled date
+            lastExamDateFormatted = scheduledExam.date
+              ? new Date(scheduledExam.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+              : 'N/A';
+        }
+        // If no exam at all, both remain 'N/A'
+
+        // Determine status based on exam results and 15-day waiting rule
         let waitingStatus = 'N/A';
-        if (lastExamDate) {
-            const fifteenDaysLater = new Date(lastExamDate);
-            fifteenDaysLater.setDate(lastExamDate.getDate() + 15);
-            if (new Date() < fifteenDaysLater) {
-                const remainingDays = Math.ceil((fifteenDaysLater.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
-                waitingStatus = `Waiting (${remainingDays} days)`;
+
+        if (examPassed) {
+            waitingStatus = 'Completed';
+        } else if (hasFailed) {
+            // Check 15-day waiting period after failed exam
+            const lastFailedExamDate = lastCompletedExam?.date ? new Date(lastCompletedExam.date) : null;
+            if (lastFailedExamDate) {
+                const fifteenDaysLater = new Date(lastFailedExamDate);
+                fifteenDaysLater.setDate(lastFailedExamDate.getDate() + 15);
+                if (new Date() < fifteenDaysLater) {
+                    const remainingDays = Math.ceil((fifteenDaysLater.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                    waitingStatus = `Waiting (${remainingDays} days)`;
+                } else {
+                    waitingStatus = 'Ready to retry';
+                }
             } else {
-                waitingStatus = 'Ready';
+                waitingStatus = 'Ready to retry';
             }
+        } else if (scheduledExam) {
+            const scheduledDate = new Date(scheduledExam.date);
+            waitingStatus = `Exam on ${scheduledDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        } else if (actualSessionsCompleted >= sessionsPlan) {
+            waitingStatus = 'Ready for exam';
+        } else if (actualSessionsCompleted > 0) {
+            waitingStatus = 'In training';
+        }
+
+        // Determine phase status
+        let phaseStatus = phase.status;
+        if (examPassed) {
+            phaseStatus = 'completed';
+        } else if (actualSessionsCompleted >= sessionsPlan) {
+            phaseStatus = 'completed'; // All sessions done, ready for exam
+        } else if (actualSessionsCompleted > 0 && phaseStatus === 'not_started') {
+            phaseStatus = 'in_progress';
         }
 
         return {
             phase: phaseLabels[phase.phase],
-            lastExamDate: phase.examDate || 'N/A',
-            results: phase.examPassed ? 'Passed' : (phase.examDate ? 'Failed' : 'N/A'),
-            attempts: phase.examAttempts,
+            lastExamDate: lastExamDateFormatted,
+            results: examResult,
+            attempts: examAttempts,
             waitingStatus: waitingStatus,
-            currentPhaseStatus: phase.status,
+            currentPhaseStatus: phaseStatus,
+            sessionsCompleted: actualSessionsCompleted,
+            hasFailed: hasFailed,
+            hasScheduledExam: !!scheduledExam,
         };
     });
   };
@@ -132,17 +355,20 @@ export function ScheduleComponent() {
     };
   }, [sessions]);
 
-  // Exam candidates from imported mockCandidates (unchanged)
-  const examCandidates = useMemo(() => {
-    return mockCandidates
+  // Exam candidates from fetched candidates
+  const examCandidates: { id: string; name: string; currentPhase: Phase; examDate: string; sessionsCompleted: number; sessionsPlan: number; examAttempts: number; }[] = useMemo(() => {
+    return candidates
       .map((candidate) => {
         const currentPhase = candidate.phases?.find(
           (p) => p.status === "in_progress" || (p.examDate && !p.examPassed)
         );
         if (!currentPhase || !currentPhase.examDate) return null;
         
+        const candidateId = candidate._id || candidate.id;
+        if (!candidateId) return null;
+
         return {
-          id: candidate.id,
+          id: candidateId,
           name: candidate.name,
           currentPhase: currentPhase.phase,
           examDate: currentPhase.examDate,
@@ -151,27 +377,36 @@ export function ScheduleComponent() {
           examAttempts: currentPhase.examAttempts,
         };
       })
-      .filter(
-        (candidate): candidate is NonNullable<typeof candidate> =>
-          candidate !== null
-      );
-  }, []);
+      .filter((candidate): candidate is { id: string; name: string; currentPhase: Phase; examDate: string; sessionsCompleted: number; sessionsPlan: number; examAttempts: number; } => candidate !== null);
+  }, [candidates]);
 
   // --- Handlers ---
-  const handleComplete = (sessionId: string) => {
-    setSessions(
-      sessions.map((s) =>
-        s.id === sessionId ? { ...s, status: "completed" as const } : s
-      )
-    );
+  const handleComplete = async (sessionId: string) => {
+    try {
+      const result = await scheduleApi.complete(sessionId);
+      if (result.success) {
+        toast.success('Session marked as completed');
+        fetchData();
+      } else {
+        toast.error(result.error || 'Failed to complete session');
+      }
+    } catch (error) {
+      toast.error('Failed to complete session');
+    }
   };
 
-  const handleCancel = (sessionId: string) => {
-    setSessions(
-      sessions.map((s) =>
-        s.id === sessionId ? { ...s, status: "cancelled" as const } : s
-      )
-    );
+  const handleCancel = async (sessionId: string) => {
+    try {
+      const result = await scheduleApi.cancel(sessionId);
+      if (result.success) {
+        toast.success('Session cancelled');
+        fetchData();
+      } else {
+        toast.error(result.error || 'Failed to cancel session');
+      }
+    } catch (error) {
+      toast.error('Failed to cancel session');
+    }
   };
 
   const changeMonth = (delta: number) => {
@@ -181,39 +416,93 @@ export function ScheduleComponent() {
   };
 
   // Add session handler (from modal)
-  const handleAddSession = (payload: {
+  const handleAddSession = async (payload: {
     candidateId: string;
     phase: string;
     instructorId?: string;
     date: string;
     time: string;
   }) => {
-    const newSession: Session = {
-      id: `s-${Date.now()}`,
-      candidateId: payload.candidateId,
-      // Find the instructor ID if using the select box, fall back to mockInstructor[0]
-      instructorId: payload.instructorId || mockInstructors[0]?.id || "",
-      phase: (payload.phase as Phase) || "parking",
-      date: payload.date,
-      time: payload.time,
-      status: "scheduled",
-    } as unknown as Session;
-    setSessions((prev) => [newSession, ...prev]);
+    try {
+      const result = await scheduleApi.create({
+        candidateId: payload.candidateId,
+        instructorId: payload.instructorId || instructors[0]?._id || "",
+        date: payload.date,
+        time: payload.time,
+        lessonType: (payload.phase as 'highway_code' | 'parking' | 'driving') || "parking",
+      });
+
+      if (result.success) {
+        toast.success('Session added successfully');
+        fetchData();
+      } else {
+        toast.error(result.error || 'Failed to add session');
+      }
+    } catch (error) {
+      toast.error('Failed to add session');
+    }
   };
 
   // Add exam handler (from modal)
-  const handleAddExam = (payload: { candidateId: string; phase: string; date: string; time: string }) => {
-    const newExam = {
-      id: `e-${Date.now()}`,
-      candidateId: payload.candidateId,
-      phase: payload.phase,
-      date: payload.date,
-      time: payload.time,
-      status: "scheduled",
-    };
-    setExams((prev) => [newExam, ...prev]);
+  const handleAddExam = async (payload: { candidateId: string; phase: string; date: string; time: string }) => {
+    try {
+      const result = await examsApi.schedule({
+        candidateId: payload.candidateId,
+        instructorId: instructors[0]?._id || "",
+        examType: payload.phase as 'highway_code' | 'parking' | 'driving',
+        date: payload.date,
+        time: payload.time,
+      });
+
+      if (result.success) {
+        toast.success('Exam scheduled successfully');
+        fetchData();
+      } else {
+        toast.error(result.error || 'Failed to schedule exam');
+      }
+    } catch (error) {
+      toast.error('Failed to schedule exam');
+    }
   };
-  
+
+  // Record exam result handler
+  const handleRecordExamResult = async (examId: string, result: 'passed' | 'failed') => {
+    try {
+      const response = await examsApi.recordResult(examId, result);
+      if (response.success) {
+        toast.success(`Exam marked as ${result}`);
+        fetchData();
+      } else {
+        toast.error(response.error || 'Failed to record exam result');
+      }
+    } catch (error) {
+      toast.error('Failed to record exam result');
+    }
+  };
+
+  // Cancel exam handler
+  const handleCancelExam = async (examId: string) => {
+    try {
+      const response = await examsApi.cancel(examId);
+      if (response.success) {
+        toast.success('Exam cancelled');
+        fetchData();
+      } else {
+        toast.error(response.error || 'Failed to cancel exam');
+      }
+    } catch (error) {
+      toast.error('Failed to cancel exam');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
   // --- Main Render ---
   return (
     <div className="min-h-screen bg-gray-50 flex justify-center">
@@ -274,6 +563,8 @@ export function ScheduleComponent() {
                 onOpenExamModal={() => setShowExamModal(true)}
                 exams={exams}
                 getCandidateInfo={getCandidateInfo}
+                onRecordResult={handleRecordExamResult}
+                onCancelExam={handleCancelExam}
               />
             )}
           </div>
@@ -312,8 +603,8 @@ export function ScheduleComponent() {
             <div className="flex-1 overflow-y-auto p-6">
               <SessionForm
                 defaultDate={selectedDate}
-                instructors={mockInstructors}
-                candidates={mockCandidates}
+                instructors={instructors}
+                candidates={candidates}
                 getCandidateCompletedSessions={getCandidateCompletedSessions}
                 onCancel={() => setShowSessionModal(false)}
                 onSubmit={(payload) => {
@@ -345,7 +636,7 @@ export function ScheduleComponent() {
             <div className="flex-1 overflow-y-auto p-6">
               <ExamForm
                 defaultDate={selectedDate}
-                candidates={mockCandidates}
+                candidates={candidates}
                 getCandidateExamHistory={getCandidateExamHistory}
                 onCancel={() => setShowExamModal(false)}
                 onSubmit={(payload) => {
@@ -385,10 +676,10 @@ function SessionForm({
     time: string;
   }) => void;
 }) {
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?.id || "");
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?._id || candidates[0]?.id || "");
   const [phase, setPhase] = useState<string>("parking");
   const [instructorId, setInstructorId] = useState<string>(
-    instructors?.[0]?.id ?? ""
+    instructors?.[0]?._id || instructors?.[0]?.id || ""
   );
   const [date, setDate] = useState<string>(() =>
     defaultDate.toISOString().slice(0, 10)
@@ -424,7 +715,7 @@ function SessionForm({
             required
           >
             {candidates.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option key={c._id || c.id} value={c._id || c.id}>
                 {c.name}
               </option>
             ))}
@@ -437,13 +728,13 @@ function SessionForm({
             {completedSessions.length === 0 ? (
               <div className="text-sm text-gray-500 text-center py-2">No completed sessions recorded for this candidate.</div>
             ) : (
-              completedSessions.map((s) => (
+              completedSessions.map((s: any) => (
                 <div
-                  key={s.id}
+                  key={s._id || s.id}
                   className="p-2 border rounded flex items-center justify-between bg-white"
                 >
                   <div>
-                    <p className="font-medium text-sm">{phaseLabels[s.phase]}</p>
+                    <p className="font-medium text-sm">{phaseLabels[(s.lessonType || s.phase) as Phase] || s.lessonType || s.phase}</p>
                     <p className="text-xs text-gray-500">
                       {s.date} — {s.time}
                     </p>
@@ -480,7 +771,7 @@ function SessionForm({
                     required
                 >
                     {instructors.map((ins) => (
-                        <option key={ins.id} value={ins.id}>
+                        <option key={ins._id || ins.id} value={ins._id || ins.id}>
                             {ins.name}
                         </option>
                     ))}
@@ -550,12 +841,15 @@ function ExamForm({
     results: string; 
     attempts: number; 
     waitingStatus: string; 
-    currentPhaseStatus: string; 
+    currentPhaseStatus: string;
+    sessionsCompleted: number;
+    hasFailed: boolean;
+    hasScheduledExam: boolean;
   }[];
   onCancel: () => void;
   onSubmit: (payload: { candidateId: string; phase: string; date: string; time: string }) => void;
 }) {
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?.id || "");
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string>(candidates[0]?._id || candidates[0]?.id || "");
   const [date, setDate] = useState<string>(() =>
     defaultDate.toISOString().slice(0, 10)
   );
@@ -565,22 +859,44 @@ function ExamForm({
     ? getCandidateExamHistory(selectedCandidateId) 
     : [];
   
-  // Auto-detect the current phase as the one marked 'in_progress' or the next phase if current is passed
-  const candidate = candidates.find(c => c.id === selectedCandidateId);
-  const currentPhase = candidate?.phases?.find(p => p.status === 'in_progress');
-  const nextPhase = candidate?.phases?.find(p => p.status === 'not_started');
-  
-  // Determine exam phase: if current phase failed or needs retake, use current phase; otherwise use next phase
-  const examPhase = currentPhase && (!currentPhase.examPassed || currentPhase.examDate) 
-    ? currentPhase.phase 
-    : nextPhase?.phase || currentPhase?.phase || 'highway_code';
+  // Find phase status from exam history (which has actual computed status)
+  const getPhaseFromHistory = (phaseName: string) => examHistory.find(h => h.phase === phaseName);
+  const highwayCodeStatus = getPhaseFromHistory('Highway Code');
+  const parkingStatus = getPhaseFromHistory('Parking');
+  const drivingStatus = getPhaseFromHistory('Driving');
+
+  // Determine which phase needs an exam
+  let examPhase: Phase = 'highway_code';
+  let phaseMessage = 'First phase';
+
+  if (highwayCodeStatus?.results === 'Passed') {
+    if (parkingStatus?.results === 'Passed') {
+      examPhase = 'driving';
+      phaseMessage = drivingStatus?.hasFailed ? 'Retaking after failure' : 'Final phase';
+    } else {
+      examPhase = 'parking';
+      phaseMessage = parkingStatus?.hasFailed ? 'Retaking after failure' : 'Moving to next phase';
+    }
+  } else if (highwayCodeStatus?.hasFailed) {
+    examPhase = 'highway_code';
+    phaseMessage = 'Retaking after failure';
+  } else if (highwayCodeStatus?.hasScheduledExam) {
+    examPhase = 'highway_code';
+    phaseMessage = 'Exam already scheduled';
+  }
 
   const currentPhaseLabel = phaseLabels[examPhase] || 'N/A';
 
+  // Check if an exam is already scheduled for this phase
+  const currentPhaseStatus = examPhase === 'highway_code' ? highwayCodeStatus :
+                             examPhase === 'parking' ? parkingStatus : drivingStatus;
+  const isExamAlreadyScheduled = currentPhaseStatus?.hasScheduledExam || false;
+  const isPhaseCompleted = currentPhaseStatus?.results === 'Passed';
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCandidateId) return;
-    
+    if (!selectedCandidateId || isExamAlreadyScheduled || isPhaseCompleted) return;
+
     onSubmit({ candidateId: selectedCandidateId, phase: examPhase, date, time });
   };
 
@@ -596,7 +912,7 @@ function ExamForm({
             required
           >
             {candidates.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option key={c._id || c.id} value={c._id || c.id}>
                 {c.name}
               </option>
             ))}
@@ -613,10 +929,11 @@ function ExamForm({
                 <thead className="bg-gray-50 sticky top-0">
                     <tr>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Phase</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Sessions</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Last Exam Date</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Result</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Attempts</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">15-Day Status</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -624,11 +941,13 @@ function ExamForm({
                         examHistory.map((history, index) => (
                             <tr key={index}>
                                 <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{history.phase}</td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{history.sessionsCompleted ?? 0}</td>
                                 <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{history.lastExamDate}</td>
                                 <td className="px-3 py-2 whitespace-nowrap text-sm">
                                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                                         history.results === 'Passed' ? 'bg-green-100 text-green-800' :
                                         history.results === 'Failed' ? 'bg-red-100 text-red-800' :
+                                        history.results === 'Scheduled' ? 'bg-blue-100 text-blue-800' :
                                         'bg-gray-100 text-gray-600'
                                     }`}>
                                         {history.results}
@@ -639,7 +958,7 @@ function ExamForm({
                             </tr>
                         ))
                     ) : (
-                        <tr><td colSpan={5} className="text-center py-4 text-sm text-gray-500">No exam history available.</td></tr>
+                        <tr><td colSpan={6} className="text-center py-4 text-sm text-gray-500">No exam history available.</td></tr>
                     )}
                 </tbody>
             </table>
@@ -656,8 +975,7 @@ function ExamForm({
               <div className="text-right">
                 <p className="text-sm text-blue-700">Auto-detected based on candidate progress</p>
                 <p className="text-xs text-blue-600">
-                  {currentPhase && !currentPhase.examPassed ? 'Retaking failed phase' : 
-                   nextPhase ? 'Moving to next phase' : 'Final phase'}
+                  {phaseMessage}
                 </p>
               </div>
             </div>
@@ -686,6 +1004,18 @@ function ExamForm({
               </div>
           </div>
 
+          {/* Warning message if exam already scheduled or phase completed */}
+          {(isExamAlreadyScheduled || isPhaseCompleted) && (
+            <div className={`p-3 rounded-lg ${isPhaseCompleted ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+              <p className={`text-sm ${isPhaseCompleted ? 'text-green-800' : 'text-yellow-800'}`}>
+                {isPhaseCompleted
+                  ? `✓ ${currentPhaseLabel} exam has already been passed.`
+                  : `⚠ An exam for ${currentPhaseLabel} is already scheduled. Please wait for the exam result or cancel the existing exam first.`
+                }
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-4 border-t">
               <button
                   type="button"
@@ -696,7 +1026,12 @@ function ExamForm({
               </button>
               <button
                   type="submit"
-                  className="px-25 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  disabled={isExamAlreadyScheduled || isPhaseCompleted}
+                  className={`px-25 py-3 rounded-lg font-medium ${
+                    isExamAlreadyScheduled || isPhaseCompleted
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
               >
                   Schedule Exam
               </button>
@@ -771,14 +1106,26 @@ function TrainingSessionsView({
           <div className="p-8 text-center text-gray-500">No sessions found</div>
         ) : (
           filteredSessions.map((session) => {
-            const candidate = getCandidateInfo(session.candidateId);
+            const candidateId = typeof session.candidateId === 'object' && session.candidateId !== null
+              ? session.candidateId._id
+              : session.candidateId;
+            const candidateName = typeof session.candidateId === 'object' && session.candidateId !== null
+              ? session.candidateId.name
+              : getCandidateInfo(candidateId)?.name;
+            const instructorId = typeof session.instructorId === 'object' && session.instructorId !== null
+              ? session.instructorId._id
+              : session.instructorId;
+            const instructorName = typeof session.instructorId === 'object' && session.instructorId !== null
+              ? session.instructorId.name
+              : getInstructorName(instructorId);
+            const phase = session.lessonType || session.phase;
             return (
-              <div key={session.id} className="p-4 hover:bg-gray-50">
+              <div key={session._id || session.id} className="p-4 hover:bg-gray-50">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-gray-900">
-                        {candidate?.name || "Unknown"}
+                        {candidateName || "Unknown"}
                       </span>
                       <span
                         className={`px-2 py-0.5 text-xs rounded-full ${
@@ -793,12 +1140,12 @@ function TrainingSessionsView({
                       </span>
                     </div>
                     <div className="text-sm text-gray-600 mb-2">
-                      {phaseLabels[session.phase] || session.phase}
+                      {phaseLabels[phase as Phase] || phase}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {session.date}
+                        {new Date(session.date).toLocaleDateString()}
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
@@ -806,7 +1153,7 @@ function TrainingSessionsView({
                       </div>
                       <div className="flex items-center gap-1">
                         <User className="w-4 h-4" />
-                        {getInstructorName(session.instructorId)}
+                        {instructorName}
                       </div>
                     </div>
                   </div>
@@ -814,14 +1161,14 @@ function TrainingSessionsView({
                     {session.status === "scheduled" && (
                       <>
                         <button
-                          onClick={() => handleComplete(session.id)}
+                          onClick={() => handleComplete(session._id || session.id || '')}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded"
                           title="Mark as completed"
                         >
                           <CheckCircle className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleCancel(session.id)}
+                          onClick={() => handleCancel(session._id || session.id || '')}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded"
                           title="Cancel session"
                         >
@@ -851,11 +1198,13 @@ interface ExamsViewProps {
     examAttempts: number;
   }[];
   onOpenExamModal: () => void;
-  exams: { id: string; candidateId: string; phase: string; date: string; time: string; status?: string }[];
+  exams: Exam[];
   getCandidateInfo: (id: string) => Candidate | undefined;
+  onRecordResult: (examId: string, result: 'passed' | 'failed') => void;
+  onCancelExam: (examId: string) => void;
 }
 
-function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo }: ExamsViewProps) {
+function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo, onRecordResult, onCancelExam }: ExamsViewProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
@@ -928,17 +1277,20 @@ function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo }:
                 </div>
               </div>
             ))}
-            {/* Also show local scheduled exams (from UI) */}
+            {/* Also show scheduled exams from API */}
             {exams.map((e) => {
-              const candidate = getCandidateInfo(e.candidateId);
+              const candidateIdStr = e.candidateId && typeof e.candidateId === 'object' ? e.candidateId._id : (e.candidateId || '');
+              const candidateName = e.candidateId && typeof e.candidateId === 'object' ? e.candidateId.name : getCandidateInfo(candidateIdStr)?.name;
               return (
-                <div key={e.id} className="border border-gray-200 rounded-lg p-4">
+                <div key={e._id || e.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="font-medium text-gray-900">
-                        {candidate?.name || "Unknown Candidate"} - {phaseLabels[e.phase as Phase]}
+                        {candidateName || "Unknown Candidate"} - {phaseLabels[e.examType as Phase]}
                       </div>
-                      <div className="text-sm text-gray-600">{e.date} {e.time}</div>
+                      <div className="text-sm text-gray-600">
+                        {e.date ? new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'} at {e.time}
+                      </div>
                     </div>
                     <span
                       className={`px-2 py-1 ${
@@ -946,12 +1298,41 @@ function ExamsView({ examCandidates, onOpenExamModal, exams, getCandidateInfo }:
                           ? "bg-green-100 text-green-700"
                           : e.status === "failed"
                           ? "bg-red-100 text-red-700"
+                          : e.status === "cancelled"
+                          ? "bg-gray-100 text-gray-700"
                           : "bg-orange-100 text-orange-700"
                       } text-xs rounded-full`}
                     >
-                      {e.status ?? "Scheduled"}
+                      {e.status === "passed" ? "Passed" :
+                       e.status === "failed" ? "Failed" :
+                       e.status === "cancelled" ? "Cancelled" : "Scheduled"}
                     </span>
                   </div>
+
+                  {/* Action buttons for scheduled exams */}
+                  {e.status === "scheduled" && (
+                    <div className="flex gap-2 mt-3 pt-3 border-t">
+                      <button
+                        onClick={() => onRecordResult(e._id || e.id || '', 'passed')}
+                        className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 font-medium"
+                      >
+                        ✓ Passed
+                      </button>
+                      <button
+                        onClick={() => onRecordResult(e._id || e.id || '', 'failed')}
+                        className="flex-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-medium"
+                      >
+                        ✗ Failed
+                      </button>
+                      <button
+                        onClick={() => onCancelExam(e._id || e.id || '')}
+                        className="px-3 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300"
+                        title="Cancel exam"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

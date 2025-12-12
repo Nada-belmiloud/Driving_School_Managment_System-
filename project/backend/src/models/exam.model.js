@@ -60,26 +60,47 @@ examSchema.index({ date: 1, time: 1 });
 examSchema.index({ status: 1 });
 
 // Static method to check if candidate can take exam (15-day waiting rule)
-examSchema.statics.canTakeExam = async function(candidateId, examType) {
-    const fifteenDaysAgo = new Date();
-    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
-
-    // Find the most recent exam of this type for this candidate
-    const recentExam = await this.findOne({
+// newExamDate is the date when the new exam will be scheduled
+examSchema.statics.canTakeExam = async function(candidateId, examType, newExamDate = null) {
+    // Find the most recent completed exam (passed or failed) of this type for this candidate
+    const lastExam = await this.findOne({
         candidateId,
         examType,
-        date: { $gte: fifteenDaysAgo },
         status: { $in: ['passed', 'failed'] }
-    }).sort({ date: -1 });
+    }).sort({ date: -1, updatedAt: -1 });
 
-    if (recentExam) {
-        const waitUntil = new Date(recentExam.date);
-        waitUntil.setDate(waitUntil.getDate() + 15);
-        return {
-            canTake: false,
-            reason: `Must wait 15 days between exam attempts. Next available date: ${waitUntil.toISOString().split('T')[0]}`,
-            waitUntil
-        };
+    if (lastExam && lastExam.status === 'failed') {
+        // Calculate the earliest allowed date (15 days after the last failed exam)
+        const lastExamDate = new Date(lastExam.date);
+        const earliestAllowed = new Date(lastExamDate);
+        earliestAllowed.setDate(earliestAllowed.getDate() + 15);
+
+        // If newExamDate is provided, check if it's at least 15 days after the last exam
+        if (newExamDate) {
+            const scheduledDate = new Date(newExamDate);
+            scheduledDate.setHours(0, 0, 0, 0);
+            earliestAllowed.setHours(0, 0, 0, 0);
+
+            if (scheduledDate < earliestAllowed) {
+                return {
+                    canTake: false,
+                    reason: `Must wait 15 days between exam attempts. Earliest available date: ${earliestAllowed.toISOString().split('T')[0]}`,
+                    waitUntil: earliestAllowed
+                };
+            }
+        } else {
+            // If no newExamDate provided, check against today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (today < earliestAllowed) {
+                return {
+                    canTake: false,
+                    reason: `Must wait 15 days between exam attempts. Earliest available date: ${earliestAllowed.toISOString().split('T')[0]}`,
+                    waitUntil: earliestAllowed
+                };
+            }
+        }
     }
 
     return { canTake: true };

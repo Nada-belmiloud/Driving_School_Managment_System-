@@ -1,18 +1,56 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Phone, Mail, ChevronRight, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Phone, Mail, ChevronRight, X, Loader2 } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
-import { mockCandidates, LICENSE_CATEGORIES, REQUIRED_DOCUMENTS } from "@/lib/mockData";
-import { CandidateDetails } from "./CandidatesDetails"; // Make sure this matches your actual file name
+import { candidatesApi } from "@/lib/api";
+import { CandidateDetails } from "./CandidatesDetails";
 import { formatDZD, getStatusStyle } from "../utils/utility";
+import { toast } from "sonner";
+
+// Constants for license categories and required documents
+const LICENSE_CATEGORIES = [
+  { value: 'A1', label: 'A1', description: 'Light motorcycles, tricycles, quadricycles' },
+  { value: 'A2', label: 'A2', description: 'Larger motorcycles (categories B and C)' },
+  { value: 'B', label: 'B', description: 'Cars ≤ 3.5 tons, up to 8 passenger seats' },
+  { value: 'C1', label: 'C1', description: 'Trucks 3.5–19 tons' },
+  { value: 'C2', label: 'C2', description: 'Heavy trucks >19 tons' },
+  { value: 'D', label: 'D', description: 'Passenger transport vehicles >3.5 tons or >8 passengers' }
+];
+
+const REQUIRED_DOCUMENTS = [
+  'Birth certificate',
+  'Residence certificate',
+  '6 photos',
+  'Medical certificate',
+  'National ID copy',
+  'Parental authorization (if under 19)'
+];
+
+interface CandidateData {
+  _id: string;
+  name: string;
+  age?: number;
+  dateOfBirth?: string;
+  phone: string;
+  email: string;
+  licenseType: string;
+  licenseCategory?: string; // Alias for backwards compatibility
+  documents: Array<{ name: string; checked: boolean }>;
+  phases: Array<{ phase: string; status: string; sessionsCompleted: number; sessionsPlan: number }>;
+  totalFee: number;
+  paidAmount: number;
+  status: string;
+}
 
 export function CandidatesList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [candidates, setCandidates] = useState<CandidateData[]>([]);
   const [formData, setFormData] = useState({
     fullName: "",
     dateOfBirth: "",
@@ -26,7 +64,31 @@ export function CandidatesList() {
     firstPayment: 11333
   });
 
-  const filtered = mockCandidates.filter((c) =>
+  // Fetch candidates from API
+  useEffect(() => {
+    fetchCandidates();
+  }, []);
+
+  const fetchCandidates = async () => {
+    setIsLoading(true);
+    try {
+      const result = await candidatesApi.getAll({ limit: 100 });
+      if (result.success && result.data) {
+        // Handle both array and object response formats
+        const candidatesData = Array.isArray(result.data)
+          ? result.data
+          : (result.data as { candidates?: CandidateData[] }).candidates || [];
+        setCandidates(candidatesData as CandidateData[]);
+      }
+    } catch (error) {
+      console.error('Error fetching candidates:', error);
+      toast.error('Failed to load candidates');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filtered = candidates.filter((c) =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -38,56 +100,93 @@ export function CandidatesList() {
     setFormData({ ...formData, documents: newDocs });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
-    setShowAddModal(false);
-    setFormData({
-      fullName: "",
-      dateOfBirth: "",
-      phone: "",
-      email: "",
-      licenseCategory: "",
-      documents: REQUIRED_DOCUMENTS.map(doc => ({ name: doc, checked: false })),
-      totalFee: 34000,
-      paymentMethod: "cash",
-      installments: 3,
-      firstPayment: 11333
-    });
+    try {
+      const result = await candidatesApi.create({
+        name: formData.fullName,
+        email: formData.email,
+        phone: `+213 ${formData.phone}`,
+        licenseType: formData.licenseCategory,
+        dateOfBirth: formData.dateOfBirth,
+        documents: formData.documents,
+        paidAmount: formData.firstPayment || 0,
+        totalFee: formData.totalFee
+      });
+
+      if (result.success) {
+        toast.success('Candidate added successfully');
+        setShowAddModal(false);
+        fetchCandidates(); // Refresh the list
+        setFormData({
+          fullName: "",
+          dateOfBirth: "",
+          phone: "",
+          email: "",
+          licenseCategory: "",
+          documents: REQUIRED_DOCUMENTS.map(doc => ({ name: doc, checked: false })),
+          totalFee: 34000,
+          paymentMethod: "cash",
+          installments: 3,
+          firstPayment: 11333
+        });
+      } else {
+        toast.error(result.error || 'Failed to add candidate');
+      }
+    } catch (error) {
+      toast.error('Failed to add candidate');
+    }
   };
 
   // Handle candidate update
-  const handleUpdateCandidate = (id: string, updatedFields: any) => {
-    console.log('Update candidate:', id, updatedFields);
-    // In a real app, you would update your state or make an API call here
+  const handleUpdateCandidate = async (id: string, updatedFields: Partial<CandidateData>) => {
+    try {
+      const result = await candidatesApi.update(id, updatedFields);
+      if (result.success) {
+        toast.success('Candidate updated successfully');
+        fetchCandidates();
+      } else {
+        toast.error(result.error || 'Failed to update candidate');
+      }
+    } catch (error) {
+      toast.error('Failed to update candidate');
+    }
   };
 
   // Handle quick actions
   const handleScheduleSession = (candidateId: string) => {
     console.log('Schedule session for:', candidateId);
-    // Implement navigation or modal opening
   };
 
   const handleRecordPayment = (candidateId: string) => {
     console.log('Record payment for:', candidateId);
-    // Implement navigation or modal opening
   };
 
   const handleAddExamResult = (candidateId: string) => {
     console.log('Add exam result for:', candidateId);
-    // Implement navigation or modal opening
   };
 
   if (selectedCandidate) {
     return (
       <CandidateDetails
         candidateId={selectedCandidate}
-        onClose={() => setSelectedCandidate(null)}
+        onClose={() => {
+          setSelectedCandidate(null);
+          fetchCandidates(); // Refresh the list when closing details
+        }}
         onUpdateCandidate={handleUpdateCandidate}
         onScheduleSession={handleScheduleSession}
         onRecordPayment={handleRecordPayment}
         onAddExamResult={handleAddExamResult}
       />
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
     );
   }
 
@@ -142,26 +241,26 @@ export function CandidatesList() {
 
             <tbody>
               {filtered.map((c) => {
-                const totalFee = c.totalFee;
-                const paid = c.paidAmount;
+                const totalFee = c.totalFee || 34000;
+                const paid = c.paidAmount || 0;
                 const percentage = Math.floor((paid / totalFee) * 100);
                 const paymentStyle = getStatusStyle(percentage);
 
-                const docsDone = c.documents.filter((d) => d.checked).length;
-                const docsTotal = c.documents.length;
+                const docsDone = (c.documents || []).filter((d) => d.checked).length;
+                const docsTotal = (c.documents || REQUIRED_DOCUMENTS.map(d => ({ name: d, checked: false }))).length;
 
-                const currentPhaseObj = c.phases.find((p) => p.status !== "completed");
+                const currentPhaseObj = (c.phases || []).find((p) => p.status !== "completed");
                 const currentPhase = currentPhaseObj
                   ? currentPhaseObj.phase.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())
                   : "Completed";
 
-                const progress = c.phases.filter((p) => p.status === "completed").length;
+                const progress = (c.phases || []).filter((p) => p.status === "completed").length;
 
                 return (
-                  <tr key={c.id} className="border-b text-sm hover:bg-gray-50">
+                  <tr key={c._id} className="border-b text-sm hover:bg-gray-50">
                     <td className="py-4">
                       <div className="text-gray-900 font-medium">{c.name}</div>
-                      <div className="text-gray-500">{c.age} years old</div>
+                      <div className="text-gray-500">{c.age || (c.dateOfBirth ? Math.floor((Date.now() - new Date(c.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : 'N/A')} years old</div>
                     </td>
 
                     <td className="py-4">
@@ -174,7 +273,7 @@ export function CandidatesList() {
                     </td>
 
                     <td className="py-4">
-                      <Badge variant="secondary">{c.licenseCategory}</Badge>
+                      <Badge variant="secondary">{c.licenseType || c.licenseCategory}</Badge>
                     </td>
 
                     <td className="py-4 text-gray-700">
@@ -185,7 +284,7 @@ export function CandidatesList() {
                     </td>
 
                     <td className="py-4 text-gray-700">
-                      {progress} / {c.phases.length}
+                      {progress} / {c.phases?.length || 3}
                       <div className="text-xs text-gray-500">phases</div>
                     </td>
 
@@ -214,7 +313,7 @@ export function CandidatesList() {
 
                     <td>
                       <button 
-                        onClick={() => setSelectedCandidate(c.id)}
+                        onClick={() => setSelectedCandidate(c._id)}
                         className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                       >
                         <ChevronRight className="text-gray-400 w-5 h-5" />
