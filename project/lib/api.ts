@@ -50,18 +50,23 @@ async function apiRequest<T>(
 
 // ==================== AUTH API ====================
 export const authApi = {
-  login: async (email: string, password: string) => {
+  login: async (username: string, email: string, password: string) => {
     const result = await apiRequest<{ id: string; name: string; email: string; token: string }>(
       '/auth/login',
       {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, email, password }),
       }
     );
 
     // Store token if login successful
     if (result.success && result.data?.token) {
       localStorage.setItem('token', result.data.token);
+      localStorage.setItem('user', JSON.stringify({
+        id: result.data.id,
+        name: result.data.name,
+        email: result.data.email
+      }));
     }
 
     return result;
@@ -70,6 +75,7 @@ export const authApi = {
   logout: async () => {
     const result = await apiRequest('/auth/logout', { method: 'POST' });
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     return result;
   },
 

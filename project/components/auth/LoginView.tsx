@@ -5,9 +5,10 @@ import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Label } from '../ui/label';
-import { Car, AlertCircle } from 'lucide-react';
+import { Car, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
+import { LoginCredentials } from '@/types/auth';
 
 interface LoginViewProps {
   onLogin: () => void;
@@ -15,8 +16,12 @@ interface LoginViewProps {
 }
 
 export function LoginView({ onLogin, onForgotPassword }: LoginViewProps) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [credentials, setCredentials] = useState<LoginCredentials>({
+    username: '',
+    email: '',
+    password: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
@@ -27,21 +32,35 @@ export function LoginView({ onLogin, onForgotPassword }: LoginViewProps) {
     setIsLoading(true);
 
     try {
-      const success = await login({ email, password });
+      const success = await login(credentials);
 
       if (success) {
         toast.success('Login successful!');
         onLogin();
       } else {
-        setError('Invalid email or password');
+        setError('Invalid username, email or password');
         toast.error('Login failed');
       }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+    } catch (err: any) {
+      const errorMessage = err.message || 'An error occurred. Please try again.';
+      setError(errorMessage);
       toast.error('Login failed');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleInputChange = (field: keyof LoginCredentials) => (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setCredentials(prev => ({
+      ...prev,
+      [field]: e.target.value
+    }));
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -51,44 +70,79 @@ export function LoginView({ onLogin, onForgotPassword }: LoginViewProps) {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-600 mb-4">
             <Car className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-gray-900 mb-2">Driving School Manager</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Driving School Manager</h1>
           <p className="text-gray-600">Sign in to access the management system</p>
         </div>
 
         <Card className="p-8 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Username Field */}
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Enter your username"
+                value={credentials.username}
+                onChange={handleInputChange('username')}
+                required
+                autoFocus
+                disabled={isLoading}
+              />
+            </div>
+
+            {/* Email Field */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={credentials.email}
+                onChange={handleInputChange('email')}
                 required
-                autoFocus
+                disabled={isLoading}
               />
             </div>
 
+            {/* Password Field with Toggle */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
                 <button
                   type="button"
                   onClick={onForgotPassword}
-                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline disabled:text-gray-400"
+                  disabled={isLoading}
                 >
                   Forgot password?
                 </button>
               </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={credentials.password}
+                  onChange={handleInputChange('password')}
+                  required
+                  className="pr-10"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none disabled:opacity-50"
+                  disabled={isLoading}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -107,13 +161,25 @@ export function LoginView({ onLogin, onForgotPassword }: LoginViewProps) {
             </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="text-sm text-gray-600 space-y-1">
-              <p><span className="font-medium">Demo Credentials:</span></p>
-              <p>Email: <code className="bg-gray-100 px-2 py-0.5 rounded">admin@drivingschool.com</code></p>
-              <p>Password: <code className="bg-gray-100 px-2 py-0.5 rounded">admin123</code></p>
+          {/* <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="text-sm text-gray-600 space-y-2">
+              <p className="font-medium">Demo Credentials:</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium w-20">Username:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded text-sm">Admin</code>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium w-20">Email:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded text-sm">admin@drivingschool.com</code>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium w-20">Password:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded text-sm">admin123</code>
+                </div>
+              </div>
             </div>
-          </div>
+          </div> */}
         </Card>
 
         <p className="text-center text-sm text-gray-500 mt-6">
