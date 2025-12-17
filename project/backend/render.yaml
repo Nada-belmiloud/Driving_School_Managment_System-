@@ -1,0 +1,24 @@
+# Render Deployment Configuration
+# This file tells Render how to build and run your backend service
+
+services:
+  - type: web
+    name: driving-school-api
+    runtime: node
+    region: frankfurt # You can change this to your preferred region
+    plan: free # Change to 'starter' or higher for production
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false # You'll set this manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true # Render will generate a secure random value
+      - key: CORS_ORIGIN
+        sync: false # Set this to your frontend URL
+

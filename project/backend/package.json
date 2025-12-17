@@ -1,5 +1,11 @@
 {
+  "name": "backend",
+  "version": "1.0.0",
   "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
@@ -43,9 +49,6 @@
     "nodemon": "^3.1.11",
     "supertest": "^6.3.4"
   },
-  "name": "backend",
-  "version": "1.0.0",
-  "main": "index.js",
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -53,5 +56,5 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "Driving School Management System Backend API"
 }
