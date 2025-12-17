@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "dev": "next dev",
-    "electron": "electron .", 
+    "electron": "electron .",
     "start": "next start",
     "seed": "ts-node scripts/seed.ts",
     "build": "next build"
@@ -69,6 +69,7 @@
     "electron": "^39.2.7",
     "eslint": "^9",
     "eslint-config-next": "^16.0.8",
+    "install": "^0.13.0",
     "nodemon": "^3.1.11",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
