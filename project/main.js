@@ -4,8 +4,8 @@ const path = require('path');
 
 let mainWindow;
 
-// Your deployed frontend URL (update this after Vercel deployment)
-const FRONTEND_URL = 'https://driving-school-manager.vercel.app';
+// Your deployed frontend URL on Render
+const FRONTEND_URL = 'https://driving-school-frontend-new.onrender.com';
 
 // Check if there is an internet connection
 async function checkInternetConnection() {
