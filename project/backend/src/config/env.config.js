@@ -21,13 +21,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Set default PORT for Render (must be done before validation)
-if (!process.env.PORT) {
+// Set default PORT for Render (handle empty string or undefined)
+const portValue = process.env.PORT;
+if (!portValue || portValue.trim() === '') {
     process.env.PORT = '10000';
 }
 
 // Set default NODE_ENV
-if (!process.env.NODE_ENV) {
+if (!process.env.NODE_ENV || process.env.NODE_ENV.trim() === '') {
     process.env.NODE_ENV = 'production';
 }
 
@@ -39,7 +40,10 @@ const requiredEnvVars = [
 
 // validate environment variables
 export const validateEnv = () => {
-    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    const missingVars = requiredEnvVars.filter(varName => {
+        const value = process.env[varName];
+        return !value || value.trim() === '';
+    });
 
     if (missingVars.length > 0) {
         console.error('missing required environment variables:');
@@ -56,14 +60,15 @@ export const validateEnv = () => {
         process.exit(1);
     }
 
-    // validate PORT
-    const port = parseInt(process.env.PORT);
+    // validate PORT - use default if invalid
+    const port = parseInt(process.env.PORT, 10);
     if (isNaN(port) || port < 1 || port > 65535) {
-        console.error('PORT must be a number between 1 and 65535');
-        process.exit(1);
+        console.log('Invalid PORT, using default 10000');
+        process.env.PORT = '10000';
     }
 
     console.log('environment variables validated successfully');
+    console.log(`Using PORT: ${process.env.PORT}`);
 };
 
 // export configuration object
