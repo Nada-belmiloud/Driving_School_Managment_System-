@@ -1,6 +1,8 @@
 {
-  "name": "driving_school",
+  "name": "driving-school-manager",
   "version": "1.0.0",
+  "description": "Driving School Management System",
+  "author": "Driving School",
   "private": true,
   "main": "main.js",
   "scripts": {
@@ -8,7 +10,10 @@
     "electron": "electron .",
     "start": "next start",
     "seed": "ts-node scripts/seed.ts",
-    "build": "next build"
+    "build": "next build",
+    "build:electron": "npm run build && electron-builder --win",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
@@ -42,6 +47,7 @@
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
+    "embla-carousel-react": "^8.6.0",
     "express": "^4.22.1",
     "lucide-react": "^0.556.0",
     "mongoose": "^7.8.8",
@@ -67,6 +73,7 @@
     "autoprefixer": "^10.4.22",
     "baseline-browser-mapping": "^2.9.5",
     "electron": "^39.2.7",
+    "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "^16.0.8",
     "install": "^0.13.0",
@@ -75,5 +82,61 @@
     "tailwindcss": "^4.1.18",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "build": {
+    "appId": "com.drivingschool.manager",
+    "productName": "Driving School Manager",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "main.js",
+      "public/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "app/.next/standalone",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": ".next/static",
+        "to": "app/.next/standalone/.next/static",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "public",
+        "to": "app/.next/standalone/public",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "public",
+        "to": "app/public",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

@@ -141,6 +141,9 @@ export const candidatesApi = {
     licenseType: string;
     address?: string;
     dateOfBirth?: string;
+    documents?: { name: string; checked: boolean }[];
+    paidAmount?: number;
+    totalFee?: number;
   }) =>
     apiRequest('/candidates', {
       method: 'POST',
