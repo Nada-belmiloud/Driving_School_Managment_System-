@@ -104,7 +104,7 @@ export const authApi = {
     }),
 
   forgotPassword: (email: string) =>
-    apiRequest('/auth/forgot-password', {
+    apiRequest<{ message: string; resetUrl?: string; note?: string }>('/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
     }),
