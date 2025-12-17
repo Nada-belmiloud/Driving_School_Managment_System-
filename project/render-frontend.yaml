@@ -1,0 +1,20 @@
+# Render Deployment Configuration for Frontend
+# This file tells Render how to build and run your Next.js frontend
+
+services:
+  - type: web
+    name: driving-school-frontend
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: project
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        value: https://driving-school-managment-system-api.onrender.com/api/v1
+
