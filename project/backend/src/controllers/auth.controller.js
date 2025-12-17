@@ -12,16 +12,29 @@ const generateToken = (id) => {
     });
 };
 
-// @desc    Login admin
-// @route   POST /api/v1/auth/login
-// @access  Public
 export const loginAdmin = asyncHandler(async (req, res, next) => {
-    const { email, password } = req.body;
+    const { username, email, password } = req.body;
 
-    // Find admin with password field
-    const admin = await Admin.findOne({ email }).select('+password');
+    console.log('Login attempt:', { username, email });
+
+    // Validate input
+    if (!username || !email || !password) {
+        return next(new AppError('Please provide username, email, and password', 400));
+    }
+
+    // Find admin by email (since email is unique)
+    const admin = await Admin.findOne({ 
+        email: email.toLowerCase().trim()
+    }).select('+password');
 
     if (!admin) {
+        console.log('No admin found with email:', email);
+        return next(new AppError('Invalid credentials', 401));
+    }
+
+    // Check if name (username) matches (case-insensitive)
+    if (admin.name.toLowerCase() !== username.toLowerCase().trim()) {
+        console.log('Username mismatch. DB name:', admin.name, 'Provided username:', username);
         return next(new AppError('Invalid credentials', 401));
     }
 
@@ -29,14 +42,17 @@ export const loginAdmin = asyncHandler(async (req, res, next) => {
     const isPasswordValid = await admin.comparePassword(password);
 
     if (!isPasswordValid) {
+        console.log('Password invalid');
         return next(new AppError('Invalid credentials', 401));
     }
+
+    console.log('Login successful for:', admin.email);
 
     res.status(200).json({
         success: true,
         data: {
             id: admin._id,
-            name: admin.name,
+            name: admin.name, // This is the username
             email: admin.email,
             token: generateToken(admin._id)
         }

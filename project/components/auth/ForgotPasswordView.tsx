@@ -130,7 +130,7 @@ export function ForgotPasswordView({ onBackToLogin }: ForgotPasswordViewProps) {
         </Card>
 
         <p className="text-center text-sm text-gray-500 mt-6">
-          Driving School Management System © 2024
+          Driving School Management System © 2025
         </p>
       </div>
     </div>

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../ui/utils';
 import { Button } from '../ui/button';
+import { useAuth } from '@/context/AuthContext'; 
 
 interface SidebarProps {
   activeView: string;
@@ -19,6 +20,18 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeView, onViewChange, onLogout }: SidebarProps) {
+  const { user } = useAuth(); // Get the logged-in user
+  
+  // Function to get initials from name
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'candidates', label: 'Candidates', icon: Users },
@@ -71,10 +84,12 @@ export function Sidebar({ activeView, onViewChange, onLogout }: SidebarProps) {
       <div className="p-4 border-t border-gray-200 space-y-3">
         <div className="flex items-center gap-3 px-2">
           <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-            <span className="text-gray-700">AB</span>
+            <span className="text-gray-700">
+              {user ? getInitials(user.name) : 'AB'}
+            </span>
           </div>
           <div className="flex-1">
-            <div className="text-gray-900">Ahmed Benali</div>
+            <div className="text-gray-900">{user?.name || 'Loading...'}</div>
             <div className="text-sm text-gray-500">Manager</div>
           </div>
         </div>

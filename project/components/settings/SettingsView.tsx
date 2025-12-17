@@ -29,9 +29,13 @@ export function SettingsView() {
 
   const [isLoading, setIsLoading] = useState(false);
 
+  const [nameForm, setNameForm] = useState({
+    newName: ''
+  });
+
   const handleEmailUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (emailForm.newEmail !== emailForm.confirmEmail) {
       toast.error('New email addresses do not match');
       return;
@@ -65,7 +69,7 @@ export function SettingsView() {
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast.error('New passwords do not match');
       return;
@@ -98,9 +102,39 @@ export function SettingsView() {
 
   const handleProfileUpdate = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Simulate API call
     toast.success('Profile updated successfully!');
+  };
+
+  const handleNameUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!nameForm.newName.trim()) {
+      toast.error('Please enter a new username');
+      return;
+    }
+
+    if (nameForm.newName.trim().length < 2) {
+      toast.error('Username must be at least 2 characters');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await authApi.updateName(nameForm.newName);
+      if (result.success) {
+        toast.success('Username updated successfully!');
+        setNameForm({ newName: '' });
+        // You might want to refresh user data here
+      } else {
+        toast.error(result.error || 'Failed to update username');
+      }
+    } catch (error) {
+      toast.error('Failed to update username');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -176,6 +210,53 @@ export function SettingsView() {
             <div className="flex justify-end">
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
                 {isLoading ? 'Updating...' : 'Update Email'}
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        {/* Name Settings */}
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+              <User className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <div className="text-gray-900">Username</div>
+              <p className="text-sm text-gray-600">Change your display name (username)</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleNameUpdate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentName">Current Username</Label>
+              <Input
+                id="currentName"
+                type="text"
+                value={user?.name || ''}
+                disabled
+                className="bg-gray-50"
+              />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="newName">New Username</Label>
+              <Input
+                id="newName"
+                type="text"
+                placeholder="Enter new username"
+                value={nameForm.newName}
+                onChange={(e) => setNameForm({ ...nameForm, newName: e.target.value })}
+                required
+                minLength={2}
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                {isLoading ? 'Updating...' : 'Update Username'}
               </Button>
             </div>
           </form>

@@ -29,12 +29,11 @@ export const protect = asyncHandler(async (req, res, next) => {
     }
 });
 
-// Validation middleware
 export const validateLogin = (req, res, next) => {
-    const { email, password } = req.body;
+    const { username, email, password } = req.body;
 
-    if (!email || !password) {
-        return next(new AppError('Please provide email and password', 400));
+    if (!username || !email || !password) {
+        return next(new AppError('Please provide username, email, and password', 400));
     }
 
     next();

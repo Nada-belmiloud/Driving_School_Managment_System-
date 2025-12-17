@@ -23,8 +23,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }))
       
-      console.log('Attempting login with:', credentials.email)
-      const result = await authApi.login(credentials.email, credentials.password)
+      console.log('Attempting login with:', { 
+        username: credentials.username, 
+        email: credentials.email 
+      })
+      
+      // UPDATED: Pass all three fields to authApi.login
+      const result = await authApi.login(
+        credentials.username, 
+        credentials.email, 
+        credentials.password
+      )
+      
       console.log('Login API result:', result)
 
       if (result.success && result.data) {
