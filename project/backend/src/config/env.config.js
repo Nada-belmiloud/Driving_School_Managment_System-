@@ -21,10 +21,18 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// required environment variables
+// Set default PORT for Render (must be done before validation)
+if (!process.env.PORT) {
+    process.env.PORT = '10000';
+}
+
+// Set default NODE_ENV
+if (!process.env.NODE_ENV) {
+    process.env.NODE_ENV = 'production';
+}
+
+// required environment variables (PORT and NODE_ENV have defaults now)
 const requiredEnvVars = [
-    'NODE_ENV',
-    'PORT',
     'MONGO_URI',
     'JWT_SECRET'
 ];

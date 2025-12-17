@@ -49,5 +49,5 @@ It allows administrators to manage students, instructors, courses, and schedules
 
 1. **Clone the repository:**
 ```bash
-git clone <your-repo-url>
+git clone "https://github.com/Nada-belmiloud/Driving_School_Managment_System-"
 cd Driving_School_Management_System/project
