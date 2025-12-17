@@ -2,7 +2,11 @@
 // API helper functions for connecting frontend to backend
 // Base URL for the backend API
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+// Production API URL (Render backend)
+const PRODUCTION_API_URL = 'https://driving-school-managment-system-api.onrender.com/api/v1';
+
+// Use environment variable if set, otherwise use production URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || PRODUCTION_API_URL;
 
 // Log the API URL for debugging
 if (typeof window !== 'undefined') {
