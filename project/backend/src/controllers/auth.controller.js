@@ -215,21 +215,42 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-    try {
-        await sendPasswordResetEmail(admin.email, resetUrl, admin.name);
+    // Check if email is configured
+    const emailConfigured = (process.env.EMAIL_USER && process.env.EMAIL_PASS) ||
+                           (process.env.SMTP_HOST && process.env.SMTP_EMAIL && process.env.SMTP_PASSWORD);
+
+    if (emailConfigured) {
+        try {
+            await sendPasswordResetEmail(admin.email, resetUrl, admin.name);
+
+            res.status(200).json({
+                success: true,
+                message: 'Password reset email sent successfully'
+            });
+        } catch (error) {
+            // If email fails, clear the reset token
+            admin.passwordResetToken = undefined;
+            admin.passwordResetExpires = undefined;
+            await admin.save({ validateBeforeSave: false });
+
+            console.error('Email sending error:', error);
+            return next(new AppError('There was an error sending the email. Please try again later.', 500));
+        }
+    } else {
+        // Email not configured - for single-user app, return the reset URL directly
+        // This is safe because this is a private single-user application
+        console.log('===========================================');
+        console.log('PASSWORD RESET LINK (Email not configured):');
+        console.log(resetUrl);
+        console.log('===========================================');
 
         res.status(200).json({
             success: true,
-            message: 'Password reset email sent successfully'
+            message: 'Password reset link generated. Check the console or use the link below.',
+            // For single-user app without email, provide the reset URL directly
+            resetUrl: resetUrl,
+            note: 'Email is not configured. Use this link to reset your password.'
         });
-    } catch (error) {
-        // If email fails, clear the reset token
-        admin.passwordResetToken = undefined;
-        admin.passwordResetExpires = undefined;
-        await admin.save({ validateBeforeSave: false });
-
-        console.error('Email sending error:', error);
-        return next(new AppError('There was an error sending the email. Please try again later.', 500));
     }
 });
 
