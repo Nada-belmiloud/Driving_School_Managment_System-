@@ -6,6 +6,7 @@ node_modules/
 out/
 dist/
 dist-electron/
+electron-dist/
 
 # Logs
 npm-debug.log*

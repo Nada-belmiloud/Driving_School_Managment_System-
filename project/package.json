@@ -87,7 +87,7 @@
     "appId": "com.drivingschool.manager",
     "productName": "Driving School Manager",
     "directories": {
-      "output": "dist-electron"
+      "output": "electron-dist"
     },
     "files": [
       "main.js",
