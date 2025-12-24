@@ -1,3 +1,5 @@
+# Driving School Management System
+
 ## 📌 Overview
 The Driving School Management System is a **web and desktop application** designed to manage a driving school through a **centralized admin-only platform**.
 
