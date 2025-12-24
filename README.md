@@ -1,53 +1,72 @@
-# Driving School Management System
+## 📌 Overview
+The Driving School Management System is a **web and desktop application** designed to manage a driving school through a **centralized admin-only platform**.
 
-## Overview
-The Driving School Management System is a **web and desktop application** designed to manage a driving school efficiently.  
-- The **web version** is built with **Next.js** and can be accessed via browser.  
-- The **desktop version** is built with **Electron**, wrapping the web app into a standalone desktop application for native use.  
+- The **web version** is built using **Next.js** and is accessed exclusively by the administrator.
+- The **desktop version** is built with **Electron**, providing a standalone desktop application for administrative use.
 
-It allows administrators to manage students, instructors, courses, and schedules in one centralized system.
+The system is **used only by the administrator**, who has full control over managing candidates, instructors, vehicles, schedules, exams, and payments.
 
----
+## 🎯 Project Objectives
+- Digitalize driving school management processes  
+- Centralize data for students, instructors, and courses  
+- Improve scheduling and progress tracking  
+- Apply software engineering best practices 
 
-## Features
+## ⚙️ Main Features
 
-- **User Management**
-  - Admin login with email & password
-  - Role-based access (manager, instructor, staff)
-- **Student Management**
-  - Add, edit, delete student profiles
-  - Track course progress
-- **Instructor Management**
-  - Add, edit, delete instructor profiles
-  - Assign instructors to courses
-- **Course & Schedule Management**
-  - Create, edit, and delete courses
-  - Assign students and instructors to schedules
-- **Desktop Enhancements**
-  - Standalone desktop application via Electron
-  - Native window controls
-- **Security**
-  - Passwords hashed with bcrypt
-  - JWT authentication for secure sessions
+### 🔐 Admin Access
+- Secure admin authentication using email and password
+- Single-role system (administrator only)
 
----
+### 👨‍🎓 Candidate Management
+- Add, edit, and delete candidate profiles
+- Track candidate progress
 
-## Tech Stack
+### 👨‍🏫 Instructor Management
+- Add, edit, and delete instructor profiles
+- Assign instructors to schedules and exams
 
-| Layer         | Technology               |
-|---------------|-------------------------|
-| Frontend      | React + Next.js + TailwindCSS |
-| Backend       | Node.js + Express       |
-| Database      | MongoDB Atlas           |
-| Desktop       | Electron                |
-| Authentication| JWT + bcrypt            |
-| UI Components | Radix UI, Recharts      |
+### 🚗 Vehicle Management
+- Add, edit, and delete vehicles  
+- Assign vehicles to courses and exams  
+- Track vehicle maintenance (maintenance history, status, and availability)
 
----
+### 📅 Schedule Management
+- Create and manage lesson schedules
+- Assign candidates, instructors, and vehicles
 
-## Installation & Setup
+### 📝 Exam Management
+- Schedule driving and theoretical exams
+- Track exam results
 
-1. **Clone the repository:**
-```bash
-git clone "https://github.com/Nada-belmiloud/Driving_School_Managment_System-"
-cd Driving_School_Management_System/project
+### 💳 Payment Management
+- Manage payments and payment history
+
+### 🖥️ Desktop Application
+- Standalone desktop application using Electron
+- Native window controls
+
+### 🔒 Security
+- Password hashing using bcrypt
+- JWT-based authentication for secure admin sessions
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|------|-----------|
+| Frontend | Next.js, React, TailwindCSS |
+| Backend | Node.js, Express |
+| Database | MongoDB (MongoDB Atlas) |
+| Desktop | Electron |
+| Authentication | JWT, bcrypt |
+| UI Components | Radix UI, Recharts |
+| Version Control | Git & GitHub |
+
+## 🧩 System Architecture
+The system follows a **client–server architecture** designed for **single-admin usage**:
+- Admin interface built with Next.js + TailwindCSS
+- Backend API built with Node.js + Express  
+- MongoDB for data storage  
+- Electron for desktop deployment  
+
+Architecture and UML diagrams are included in the documentation.
